@@ -668,8 +668,6 @@ export const AdminDashboard = () => {
               <p className="text-sm font-bold text-gray-700 mb-3 font-serif">Time Range</p>
               <div className="flex gap-2">
                 <button className="px-6 py-2 rounded-full bg-brand-maroon text-white text-sm font-bold shadow-md">Today</button>
-                <button className="px-6 py-2 rounded-full bg-brand-cream text-brand-maroon text-sm font-bold hover:bg-brand-goldGlow transition-colors">This Week</button>
-                <button className="px-6 py-2 rounded-full bg-brand-cream text-brand-maroon text-sm font-bold hover:bg-brand-goldGlow transition-colors">This Month</button>
               </div>
             </div>
 
