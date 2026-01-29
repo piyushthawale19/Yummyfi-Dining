@@ -6,7 +6,7 @@ import {
   Plus, Trash2, Image as ImageIcon, X,
   LayoutDashboard, ClipboardList, Package,
   ChevronRight, Clock, CheckCircle, ChevronDown,
-  ChefHat, LogOut, ArrowLeft, Settings,
+  ChefHat, LogOut, ArrowLeft, Menu,
   TrendingUp, ShoppingBag, DollarSign, FileText,
   Eye, Edit2, Download, User, Phone, Printer, ChevronUp,
   ListFilter, RefreshCw, Database, Flame
@@ -47,29 +47,42 @@ const OrderTimer = ({ confirmedAt }: { confirmedAt: string }) => {
 
 // --- SUB-COMPONENTS ---
 
-const SidebarItem = ({ icon: Icon, label, active, onClick, count }: any) => (
-  <button
-    onClick={onClick}
-    className={cn(
-      "w-full flex items-center gap-3 px-6 py-4 transition-all relative group rounded-r-full mr-4 mb-1",
-      active
-        ? "bg-brand-maroon text-white shadow-md"
-        : "text-gray-600 hover:bg-brand-cream hover:text-brand-maroon"
-    )}
-  >
-    <Icon size={20} className={active ? "text-white" : "text-gray-500 group-hover:text-brand-maroon"} />
-    <span className={cn("font-medium", active ? "font-bold" : "")}>{label}</span>
-    {count !== undefined && count > 0 && (
-      <span className={cn(
-        "ml-auto text-xs font-bold px-2 py-0.5 rounded-full",
-        active ? "bg-white text-brand-maroon" : "bg-brand-maroon text-white"
-      )}>
-        {count}
-      </span>
-    )}
-    {active && <div className="absolute left-0 top-0 bottom-0 w-1 bg-brand-yellow rounded-r-full" />}
-  </button>
-);
+const SidebarItem = ({ icon: Icon, label, active, onClick, count, collapsed }: any) => {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "w-full flex items-center transition-all relative group mb-1",
+        collapsed ? "justify-center py-3 px-2" : "gap-3 py-4 px-6 rounded-r-full mr-4",
+        active
+          ? "bg-brand-maroon text-white shadow-md"
+          : "text-gray-600 hover:bg-brand-cream hover:text-brand-maroon"
+      )}
+      title={label}
+    >
+      <Icon size={20} className={active ? "text-white" : "text-gray-500 group-hover:text-brand-maroon"} />
+      {!collapsed && (
+        <>
+          <span className={cn("font-medium", active ? "font-bold" : "")}>{label}</span>
+          {count !== undefined && count > 0 && (
+            <span className={cn(
+              "ml-auto text-xs font-bold px-2 py-0.5 rounded-full",
+              active ? "bg-white text-brand-maroon" : "bg-brand-maroon text-white"
+            )}>
+              {count}
+            </span>
+          )}
+        </>
+      )}
+      {!collapsed && active && <div className="absolute left-0 top-0 bottom-0 w-1 bg-brand-yellow rounded-r-full" />}
+      {collapsed && count !== undefined && count > 0 && (
+        <span className="absolute -top-1 -right-1 w-4 h-4 bg-brand-maroon text-white text-[9px] font-bold flex items-center justify-center rounded-full border-2 border-white">
+          {count}
+        </span>
+      )}
+    </button>
+  );
+};
 
 const StatCard = ({ icon: Icon, label, value, trend, trendValue }: any) => (
   <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-between h-full hover:shadow-md transition-all duration-300">
@@ -345,6 +358,7 @@ export const AdminDashboard = () => {
   const { orders, products, addProduct, deleteProduct, updateOrderStatus, logoutAdmin } = useApp();
   const [activeView, setActiveView] = useState<'dashboard' | 'orders' | 'products'>('dashboard');
   const [orderFilter, setOrderFilter] = useState<'all' | 'pending' | 'confirmed' | 'ready' | 'completed'>('all');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Product Form State
   const [showProductForm, setShowProductForm] = useState(false);
@@ -403,18 +417,44 @@ export const AdminDashboard = () => {
   return (
     <div className="flex min-h-screen bg-brand-offWhite font-sans">
       {/* SIDEBAR */}
-      <aside className="w-64 bg-white border-r border-gray-200 fixed inset-y-0 left-0 z-20 flex flex-col shadow-sm">
-        <div className="p-6 flex items-center gap-3 mb-4">
+      <aside className={cn(
+        "bg-white border-r border-gray-200 fixed inset-y-0 left-0 z-20 flex flex-col shadow-sm transition-all duration-300",
+        sidebarCollapsed ? "w-20" : "w-64"
+      )}>
+        {/* Toggle Button - Floating Style */}
+        <motion.button 
+          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          className={cn(
+            "absolute top-6 -right-4 z-30 w-8 h-8 rounded-full bg-gradient-to-br from-brand-maroon to-brand-burgundy text-white shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center border-4 border-brand-offWhite group",
+            "hover:from-brand-burgundy hover:to-brand-maroon"
+          )}
+          title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          <motion.div
+            animate={{ rotate: sidebarCollapsed ? 0 : 180 }}
+            transition={{ duration: 0.3 }}
+            className="flex items-center justify-center"
+          >
+            <ChevronRight size={16} strokeWidth={3} />
+          </motion.div>
+        </motion.button>
+
+        <div className={cn("p-6 flex items-center gap-3 mb-4", sidebarCollapsed && "justify-center p-4")}>
           <div className="bg-brand-maroon p-2.5 rounded-full text-white shadow-md">
             <ChefHat size={22} />
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-brand-maroon font-serif leading-none">Yummy-Fi</h1>
-            <span className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">Admin Panel</span>
-          </div>
-          <button className="ml-auto text-gray-400 hover:text-gray-600">
-            <ChevronLeftIcon />
-          </button>
+          {!sidebarCollapsed && (
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <h1 className="text-xl font-bold text-brand-maroon font-serif leading-none">Yummy-Fi</h1>
+              <span className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">Admin Panel</span>
+            </motion.div>
+          )}
         </div>
 
         <nav className="flex-1 py-2 space-y-1">
@@ -423,6 +463,7 @@ export const AdminDashboard = () => {
             label="Dashboard"
             active={activeView === 'dashboard'}
             onClick={() => setActiveView('dashboard')}
+            collapsed={sidebarCollapsed}
           />
           <SidebarItem
             icon={ClipboardList}
@@ -430,26 +471,33 @@ export const AdminDashboard = () => {
             active={activeView === 'orders'}
             onClick={() => setActiveView('orders')}
             count={pendingOrders.length}
+            collapsed={sidebarCollapsed}
           />
           <SidebarItem
             icon={Package}
             label="Products"
             active={activeView === 'products'}
             onClick={() => setActiveView('products')}
+            collapsed={sidebarCollapsed}
           />
         </nav>
 
         <div className="p-4 mt-auto border-t border-gray-100">
-          <SidebarItem icon={Settings} label="Settings" onClick={() => { }} />
-          <button onClick={logoutAdmin} className="w-full flex items-center gap-3 px-6 py-4 text-gray-600 hover:text-red-600 transition-colors mt-2 rounded-lg hover:bg-red-50">
+          <button onClick={logoutAdmin} className={cn(
+            "w-full flex items-center gap-3 py-4 text-gray-600 hover:text-red-600 transition-colors rounded-lg hover:bg-red-50",
+            sidebarCollapsed ? "justify-center px-2" : "px-6"
+          )}>
             <LogOut size={20} />
-            <span className="font-medium">Logout</span>
+            {!sidebarCollapsed && <span className="font-medium">Logout</span>}
           </button>
         </div>
       </aside>
 
       {/* MAIN CONTENT AREA */}
-      <main className="flex-1 ml-64 p-8 overflow-y-auto h-screen">
+      <main className={cn(
+        "flex-1 p-8 overflow-y-auto h-screen transition-all duration-300",
+        sidebarCollapsed ? "ml-20" : "ml-64"
+      )}>
 
         {/* --- DASHBOARD VIEW (UPDATED LAYOUT) --- */}
         {activeView === 'dashboard' && (
