@@ -6,12 +6,13 @@ import {
   Plus, Trash2, Image as ImageIcon, X,
   LayoutDashboard, ClipboardList, Package,
   ChevronRight, Clock, CheckCircle, ChevronDown,
-  ChefHat, LogOut, ArrowLeft, Menu,
+  LogOut, ArrowLeft, Menu,
   TrendingUp, ShoppingBag, DollarSign, FileText,
   Eye, Edit2, Download, User, Phone, Printer, ChevronUp,
   ListFilter, RefreshCw, Database, Flame
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { BillReceipt } from '../../components/BillReceipt';
 
 // --- HELPER COMPONENT FOR TIMER ---
 const OrderTimer = ({ confirmedAt }: { confirmedAt: string }) => {
@@ -218,6 +219,7 @@ const DashboardOrderCard = ({ order, onUpdateStatus }: { order: Order, onUpdateS
 // Detailed Card for Orders View
 const OrderManagementCard = ({ order, onUpdateStatus }: { order: Order, onUpdateStatus: any }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showBillReceipt, setShowBillReceipt] = useState(false);
 
   const statusConfig = {
     pending: { label: 'Pending', bg: 'bg-brand-yellow', text: 'text-brand-maroon', icon: Clock },
@@ -343,11 +345,21 @@ const OrderManagementCard = ({ order, onUpdateStatus }: { order: Order, onUpdate
             </button>
           )}
 
-          <button className="flex-1 bg-brand-cream text-brand-maroon py-2.5 rounded-lg font-bold hover:bg-brand-goldGlow transition-colors flex items-center justify-center gap-2 text-sm border border-brand-maroon/10">
+          <button
+            onClick={() => setShowBillReceipt(true)}
+            className="flex-1 bg-brand-cream text-brand-maroon py-2.5 rounded-lg font-bold hover:bg-brand-goldGlow transition-colors flex items-center justify-center gap-2 text-sm border border-brand-maroon/10"
+          >
             <Printer size={16} /> Print Receipt
           </button>
         </div>
       </div>
+
+      {/* Bill Receipt Modal */}
+      <BillReceipt
+        order={order}
+        isOpen={showBillReceipt}
+        onClose={() => setShowBillReceipt(false)}
+      />
     </div>
   );
 };
@@ -422,7 +434,7 @@ export const AdminDashboard = () => {
         sidebarCollapsed ? "w-20" : "w-64"
       )}>
         {/* Toggle Button - Floating Style */}
-        <motion.button 
+        <motion.button
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
@@ -442,9 +454,11 @@ export const AdminDashboard = () => {
         </motion.button>
 
         <div className={cn("p-6 flex items-center gap-3 mb-4", sidebarCollapsed && "justify-center p-4")}>
-          <div className="bg-brand-maroon p-2.5 rounded-full text-white shadow-md">
-            <ChefHat size={22} />
-          </div>
+          <img
+            src="/542169443-ff628a00-4675-44b8-9fb4-6c3b6630590b.png"
+            alt="Admin Logo"
+            className="w-10 h-10 object-contain drop-shadow-sm rounded-full"
+          />
           {!sidebarCollapsed && (
             <motion.div
               initial={{ opacity: 0, x: -10 }}

@@ -78,9 +78,9 @@ export const TrackOrderPage = () => {
   return (
     <div className="min-h-screen bg-brand-offWhite pb-20">
       {/* Header Section */}
-      <div className="bg-brand-cream pt-8 pb-16 px-4 text-center">
-        <h1 className="text-4xl font-bold text-brand-maroon font-serif mb-2">Track Your Order</h1>
-        <p className="text-brand-maroon/70 text-lg">
+      <div className="bg-brand-cream pt-6 pb-12 px-4 text-center sm:pt-8 sm:pb-16">
+        <h1 className="text-2xl sm:text-4xl font-bold text-brand-maroon font-serif mb-2">Track Your Order</h1>
+        <p className="text-brand-maroon/70 text-sm sm:text-lg">
           {order.status === 'pending' ? 'Waiting for confirmation...' :
             order.status === 'ready' ? 'Your order is ready to pick up!' :
               order.status === 'completed' ? 'Order delivered successfully' :
@@ -88,20 +88,20 @@ export const TrackOrderPage = () => {
         </p>
       </div>
 
-      <div className="max-w-3xl mx-auto px-4 -mt-10">
+      <div className="max-w-3xl mx-auto px-4 -mt-8 sm:-mt-10">
 
         {/* Status Banner */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className={`border-2 rounded-2xl p-6 flex items-center gap-4 shadow-sm mb-8 ${order.status === 'pending'
+          className={`border-2 rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row items-center sm:items-start gap-4 shadow-sm mb-6 sm:mb-8 text-center sm:text-left ${order.status === 'pending'
             ? 'bg-white border-brand-yellow'
             : order.status === 'completed'
               ? 'bg-white border-green-600'
               : 'bg-white border-brand-maroon'
             }`}
         >
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white flex-shrink-0 ${order.status === 'pending' ? 'bg-brand-yellow' :
+          <div className={`w-12 h-12 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-white flex-shrink-0 mx-auto sm:mx-0 ${order.status === 'pending' ? 'bg-brand-yellow' :
             order.status === 'ready' ? 'bg-green-600' :
               order.status === 'completed' ? 'bg-gray-500' : 'bg-brand-maroon'
             }`}>
@@ -110,7 +110,7 @@ export const TrackOrderPage = () => {
                 <CheckCircle size={20} strokeWidth={3} />}
           </div>
           <div>
-            <h3 className={`text-xl font-bold font-serif ${order.status === 'pending' ? 'text-brand-mustard' :
+            <h3 className={`text-lg sm:text-xl font-bold font-serif mb-1 ${order.status === 'pending' ? 'text-brand-mustard' :
               order.status === 'ready' ? 'text-green-700' :
                 order.status === 'completed' ? 'text-gray-600' : 'text-brand-maroon'
               }`}>
@@ -118,9 +118,9 @@ export const TrackOrderPage = () => {
                 order.status === 'ready' ? 'Order Ready!' :
                   order.status === 'completed' ? 'Order Completed' : 'Order Confirmed'}
             </h3>
-            <p className="text-gray-600 font-medium">
+            <p className="text-sm sm:text-base text-gray-600 font-medium leading-relaxed">
               {order.status === 'pending' ? 'Waiting for restaurant to confirm...' :
-                order.status === 'ready' ? 'Done Your Order is Ready✅' :
+                order.status === 'ready' ? 'Done! Your Order is Ready ✅' :
                   order.status === 'completed' ? 'Enjoy your meal!' : 'Kitchen is preparing your food'}
             </p>
           </div>
@@ -128,29 +128,33 @@ export const TrackOrderPage = () => {
 
         {/* Timer Section - IF CONFIRMED OR READY */}
         {(order.status === 'confirmed' || order.status === 'ready') && (
-          <div className="bg-white rounded-3xl shadow-sm p-8 mb-8 flex flex-col items-center justify-center relative overflow-hidden">
-            <div className="relative w-64 h-64 flex items-center justify-center mb-6">
+          <div className="bg-white rounded-3xl shadow-sm p-6 sm:p-8 mb-6 sm:mb-8 flex flex-col items-center justify-center relative overflow-hidden">
+            <div className="relative w-48 h-48 sm:w-64 sm:h-64 flex items-center justify-center mb-6">
               {/* Background Circle */}
               <svg className="w-full h-full transform -rotate-90">
-                <circle cx="128" cy="128" r={radius} stroke="#FFF8F3" strokeWidth="12" fill="none" />
+                <circle cx="50%" cy="50%" r="46%" stroke="#FFF8F3" strokeWidth="10%" fill="none" />
                 {/* Progress Circle - Green if Ready */}
                 <circle
-                  cx="128" cy="128" r={radius}
+                  cx="50%" cy="50%" r="46%"
                   stroke={order.status === 'ready' ? "#16a34a" : "#7A0C0C"}
-                  strokeWidth="12" fill="none"
-                  strokeDasharray={circumference}
-                  strokeDashoffset={strokeDashoffset}
-                  strokeLinecap="round"
+                  strokeWidth="10%" fill="none"
+                  strokeDasharray={2 * Math.PI * 80 * (window.innerWidth < 640 ? 0.7 : 1)} // Approximate fix for viewing purpose, logic handled by relative sizes
+                  strokeDashoffset={strokeDashoffset * (window.innerWidth < 640 ? 0.7 : 1)} // simplified for responsive SVG
+                  pathLength="100"
                   className="transition-all duration-1000 ease-linear"
+                  style={{
+                    strokeDasharray: 100,
+                    strokeDashoffset: 100 * (1 - progress)
+                  }}
                 />
               </svg>
 
               {/* Timer Text */}
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className={`text-6xl font-bold ${order.status === 'ready' ? 'text-green-600' : 'text-brand-maroon'} font-serif tabular-nums tracking-tight`}>
+                <span className={`text-4xl sm:text-6xl font-bold ${order.status === 'ready' ? 'text-green-600' : 'text-brand-maroon'} font-serif tabular-nums tracking-tight`}>
                   {formatTime(timeLeft)}
                 </span>
-                <span className={`${order.status === 'ready' ? 'text-green-600/60' : 'text-brand-maroon/60'} font-medium mt-1`}>
+                <span className={`text-xs sm:text-base ${order.status === 'ready' ? 'text-green-600/60' : 'text-brand-maroon/60'} font-medium mt-1 uppercase tracking-wider`}>
                   Remaining
                 </span>
               </div>
@@ -185,28 +189,28 @@ export const TrackOrderPage = () => {
         )}
 
         {/* Order Details */}
-        <div className="bg-white rounded-3xl shadow-sm p-8 mb-8">
-          <div className="flex justify-between items-start mb-8 border-b border-gray-100 pb-6">
+        <div className="bg-white rounded-3xl shadow-sm p-5 sm:p-8 mb-8">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8 border-b border-gray-100 pb-4 sm:pb-6">
             <div>
-              <h2 className="text-2xl font-bold text-brand-maroon font-serif mb-1">Order Details</h2>
-              <p className="text-brand-maroon/60 font-mono text-sm">Order ID: {order.id}</p>
+              <h2 className="text-xl sm:text-2xl font-bold text-brand-maroon font-serif mb-1">Order Details</h2>
+              <p className="text-brand-maroon/60 font-mono text-xs sm:text-sm">Order ID: #{order.id.slice(-6).toUpperCase()}</p>
             </div>
-            <div className="flex items-center gap-2 text-brand-maroon font-bold bg-brand-cream px-4 py-2 rounded-lg">
-              <MapPin size={18} />
+            <div className="flex items-center gap-2 text-brand-maroon font-bold bg-brand-cream px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-sm sm:text-base">
+              <MapPin size={16} />
               <span>Table {order.tableNumber}</span>
             </div>
           </div>
 
           <div className="mb-6">
-            <h3 className="text-lg font-bold text-brand-maroon font-serif mb-4">Items Ordered</h3>
-            <div className="space-y-6">
+            <h3 className="text-base sm:text-lg font-bold text-brand-maroon font-serif mb-3 sm:mb-4">Items Ordered</h3>
+            <div className="space-y-4 sm:space-y-6">
               {order.items.map((item: any, idx: number) => (
-                <div key={idx} className="flex justify-between items-center">
-                  <div className="flex items-center gap-4">
-                    <span className="text-brand-maroon font-bold text-lg">{item.quantity}x</span>
-                    <span className="text-gray-800 font-medium text-lg">{item.name}</span>
+                <div key={idx} className="flex justify-between items-start gap-3">
+                  <div className="flex items-start gap-3 sm:gap-4">
+                    <span className="text-brand-maroon font-bold text-base sm:text-lg whitespace-nowrap">{item.quantity}x</span>
+                    <span className="text-gray-800 font-medium text-sm sm:text-lg leading-tight">{item.name}</span>
                   </div>
-                  <span className="font-bold text-gray-900">
+                  <span className="font-bold text-gray-900 text-sm sm:text-lg whitespace-nowrap">
                     {formatPrice((item.offerPrice || item.price) * item.quantity)}
                   </span>
                 </div>
@@ -214,8 +218,8 @@ export const TrackOrderPage = () => {
             </div>
           </div>
 
-          <div className="border-t border-gray-100 pt-6">
-            <div className="flex justify-between text-2xl font-bold text-brand-maroon font-serif">
+          <div className="border-t border-gray-100 pt-4 sm:pt-6">
+            <div className="flex justify-between text-xl sm:text-2xl font-bold text-brand-maroon font-serif">
               <span>Total Amount</span>
               <span>{formatPrice(order.totalAmount)}</span>
             </div>
