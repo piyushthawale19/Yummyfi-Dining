@@ -14,8 +14,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BillReceipt } from '../../components/BillReceipt';
-import { storage } from '../../firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ExportDataModal } from '../../components/ExportDataModal';
 
 // --- HELPER COMPONENT FOR TIMER ---
 const OrderTimer = ({ confirmedAt }: { confirmedAt: string }) => {
@@ -386,6 +385,7 @@ export const AdminDashboard = () => {
   const [imageUrl, setImageUrl] = useState(''); // For direct URL input
   const [uploadMethod, setUploadMethod] = useState<'file' | 'url'>('file');
   const [isUploading, setIsUploading] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   const pendingOrders = orders.filter(o => o.status === 'pending');
   const confirmedOrders = orders.filter(o => o.status === 'confirmed');
@@ -747,14 +747,17 @@ export const AdminDashboard = () => {
                     </button>
                   </div>
 
-                  <button className="w-full mt-4 p-4 rounded-2xl bg-brand-offWhite hover:bg-brand-cream transition-colors flex items-center justify-between group">
+                  <button
+                    onClick={() => setShowExportModal(true)}
+                    className="w-full mt-4 p-4 rounded-2xl bg-brand-offWhite hover:bg-brand-cream transition-colors flex items-center justify-between group"
+                  >
                     <div className="flex items-center gap-3">
                       <div className="text-green-600">
                         <Download size={20} />
                       </div>
                       <div className="text-left">
                         <h4 className="font-bold text-gray-900 text-sm group-hover:text-green-700">Export Data</h4>
-                        <p className="text-xs text-gray-500">Download Google Sheets</p>
+                        <p className="text-xs text-gray-500">Sync to Google Sheets</p>
                       </div>
                     </div>
                   </button>
@@ -1133,6 +1136,13 @@ export const AdminDashboard = () => {
           </div>
         </div>
       )}
+
+      {/* Export Data Modal */}
+      <ExportDataModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        orders={orders}
+      />
     </div>
   );
 };
