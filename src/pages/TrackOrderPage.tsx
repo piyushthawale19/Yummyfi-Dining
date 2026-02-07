@@ -6,11 +6,13 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
 export const TrackOrderPage = () => {
-  const { orders } = useApp();
+  const { orders, ordersLoading } = useApp();
   const [order, setOrder] = useState<any>(null);
   const [timeLeft, setTimeLeft] = useState(20 * 60); // 20 minutes in seconds
 
   useEffect(() => {
+    if (ordersLoading) return;
+
     const lastOrderId = localStorage.getItem('lastOrderId');
     if (lastOrderId) {
       const foundOrder = orders.find(o => o.id === lastOrderId);
@@ -35,7 +37,7 @@ export const TrackOrderPage = () => {
         }
       }
     }
-  }, [orders]);
+  }, [orders, ordersLoading]);
 
   useEffect(() => {
     if (!order || order.status !== 'confirmed' || timeLeft <= 0) return;
@@ -59,6 +61,18 @@ export const TrackOrderPage = () => {
   const radius = 80;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference * (1 - progress);
+
+  if (ordersLoading) {
+    return (
+      <div className="min-h-[80vh] flex flex-col items-center justify-center p-4 text-center bg-brand-offWhite">
+        <div className="w-24 h-24 bg-brand-cream rounded-full flex items-center justify-center mb-6">
+          <Loader2 size={40} className="text-brand-maroon animate-spin" />
+        </div>
+        <h2 className="text-2xl font-bold text-brand-maroon mb-2 font-serif">Loading your order</h2>
+        <p className="text-gray-500 mb-8">Fetching your latest order details...</p>
+      </div>
+    );
+  }
 
   if (!order) {
     return (

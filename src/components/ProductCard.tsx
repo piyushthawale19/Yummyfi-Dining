@@ -1,15 +1,40 @@
 import React from 'react';
 import { Product } from '../types';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { formatPrice, cn } from '../utils/helpers';
 import { ShoppingCart } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export const ProductCard = ({ product }: { product: Product }) => {
   const { addToCart } = useApp();
+  const { user, signInWithGoogle } = useAuth();
   const [isAdding, setIsAdding] = React.useState(false);
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
+    // Check if user is authenticated
+    if (!user) {
+      const confirmSignIn = window.confirm(
+        'Please sign in with your Google account to add items to cart. This helps us track your delivery later.\n\nClick OK to sign in with Google.'
+      );
+
+      if (confirmSignIn) {
+        try {
+          // Pass forAdmin=false to indicate this is a regular user login
+          await signInWithGoogle(false);
+          // After successful sign-in, add to cart
+          setIsAdding(true);
+          addToCart(product);
+          setTimeout(() => setIsAdding(false), 600);
+        } catch (error) {
+          console.error('Sign-in failed:', error);
+          alert('Sign-in failed. Please try again.');
+        }
+      }
+      return;
+    }
+
+    // User is already authenticated, proceed with adding to cart
     setIsAdding(true);
     addToCart(product);
     setTimeout(() => setIsAdding(false), 600);

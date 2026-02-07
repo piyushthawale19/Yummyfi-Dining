@@ -1,17 +1,23 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { formatPrice } from '../utils/helpers';
 import { Minus, Plus, Trash2, ArrowLeft, CheckCircle, ShoppingCart, User, MapPin, X } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 export const CartPage = () => {
   const { cart, updateQuantity, removeFromCart, placeOrder, tableNumber, customerName, setTableInfo } = useApp();
+  const { user, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
   const [showTableModal, setShowTableModal] = useState(false);
-  
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState('');
+
   // Local state for the modal inputs
   const [tempTable, setTempTable] = useState(tableNumber || '');
   const [tempName, setTempName] = useState(customerName || '');
+
+
 
   const totalAmount = cart.reduce((sum, item) => sum + (item.offerPrice || item.price) * item.quantity, 0);
 
@@ -22,24 +28,27 @@ export const CartPage = () => {
     setShowTableModal(true);
   };
 
-  const handleConfirmOrder = (e: React.FormEvent) => {
+  const handleConfirmOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (tempTable.trim()) {
+    if (tempTable.trim() && user) {
       setTableInfo(tempTable, tempName);
-      // We need to wait for state update or just pass values? 
-      // Context updates are synchronous in React 18 batching usually, but to be safe we rely on the context state in placeOrder
-      // However, since we just called setTableInfo, let's delay placeOrder slightly or modify placeOrder to accept args.
-      // For simplicity, we'll update context then call placeOrder.
-      
-      // A small timeout ensures context propagates if needed, though usually fine.
-      // Better approach: Update context, then call placeOrder.
-      
-      setTimeout(() => {
-        const orderId = placeOrder(); // This uses the context values
-        if (orderId) {
-          navigate('/track-order');
-        }
-      }, 0);
+      const orderId = await placeOrder();
+      if (orderId) {
+        navigate('/track-order');
+      }
+    }
+  };
+
+  const handleGoogleAuth = async () => {
+    try {
+      setAuthError('');
+      setAuthLoading(true);
+      await signInWithGoogle();
+    } catch (err) {
+      console.error(err);
+      setAuthError('Failed to sign in with Google. Please try again.');
+    } finally {
+      setAuthLoading(false);
     }
   };
 
@@ -71,7 +80,7 @@ export const CartPage = () => {
         {cart.map((item) => (
           <div key={item.id} className="p-4 border-b border-gray-100 last:border-0 flex gap-4">
             <img src={item.imageUrl} alt={item.name} className="w-20 h-20 object-cover rounded-lg bg-gray-100" />
-            
+
             <div className="flex-grow flex flex-col justify-between">
               <div className="flex justify-between items-start">
                 <div>
@@ -87,16 +96,16 @@ export const CartPage = () => {
                 <div className="font-bold text-brand-maroon">
                   {formatPrice((item.offerPrice || item.price) * item.quantity)}
                 </div>
-                
+
                 <div className="flex items-center gap-3 bg-brand-offWhite rounded-lg p-1">
-                  <button 
+                  <button
                     onClick={() => updateQuantity(item.id, -1)}
                     className="w-7 h-7 flex items-center justify-center bg-white rounded shadow-sm text-brand-maroon hover:bg-gray-50"
                   >
                     <Minus size={14} />
                   </button>
                   <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
-                  <button 
+                  <button
                     onClick={() => updateQuantity(item.id, 1)}
                     className="w-7 h-7 flex items-center justify-center bg-white rounded shadow-sm text-brand-maroon hover:bg-gray-50"
                   >
@@ -127,7 +136,7 @@ export const CartPage = () => {
             <span className="text-xs text-gray-500">Total Amount</span>
             <span className="text-xl font-bold text-brand-maroon">{formatPrice(totalAmount)}</span>
           </div>
-          <button 
+          <button
             onClick={handlePlaceOrderClick}
             className="flex-grow bg-brand-yellow text-brand-maroon font-bold py-3 px-6 rounded-xl hover:bg-brand-mustard transition-colors flex items-center justify-center gap-2"
           >
@@ -140,7 +149,7 @@ export const CartPage = () => {
       {showTableModal && (
         <div className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl p-8 max-w-sm w-full shadow-2xl relative">
-            <button 
+            <button
               onClick={() => setShowTableModal(false)}
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
             >
@@ -148,12 +157,36 @@ export const CartPage = () => {
             </button>
 
             <div className="w-16 h-16 bg-brand-cream rounded-full flex items-center justify-center mx-auto mb-4">
-               <MapPin size={32} className="text-brand-maroon" />
+              <MapPin size={32} className="text-brand-maroon" />
             </div>
-            
+
             <h2 className="text-2xl font-bold text-brand-maroon mb-2 font-serif text-center">Final Step</h2>
-            <p className="text-gray-500 mb-6 text-center">Please confirm your table details</p>
-            
+            <p className="text-gray-500 mb-6 text-center">Sign in with Google and confirm your table details</p>
+
+            {/* Auth section */}
+            {!user && (
+              <div className="mb-6 space-y-2">
+                <button
+                  type="button"
+                  onClick={handleGoogleAuth}
+                  disabled={authLoading}
+                  className="w-full bg-white border border-gray-200 text-gray-800 font-bold py-3 rounded-xl hover:bg-gray-50 disabled:opacity-60 flex items-center justify-center gap-2 shadow-sm"
+                >
+                  {authLoading ? 'Connecting to Google…' : 'Continue with Google to place order'}
+                </button>
+                {authError && (
+                  <p className="text-xs text-red-500 text-center">{authError}</p>
+                )}
+              </div>
+            )}
+            {user && (
+              <p className="mb-4 text-xs text-center text-green-700 font-medium">
+                Signed in as {user.email}
+              </p>
+            )}
+
+
+
             <form onSubmit={handleConfirmOrder} className="space-y-4">
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1 ml-1">Table Number</label>
@@ -172,9 +205,9 @@ export const CartPage = () => {
                   />
                 </div>
               </div>
-              
+
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1 ml-1">Your Name (Optional)</label>
+                <label className="block text-sm font-bold text-gray-700 mb-1 ml-1">Your Name</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                     <User size={18} className="text-gray-400" />
@@ -185,16 +218,17 @@ export const CartPage = () => {
                     className="w-full pl-10 pr-4 text-lg border-2 border-gray-200 rounded-xl focus:border-brand-maroon outline-none py-3 bg-gray-50 placeholder:text-gray-400"
                     value={tempName}
                     onChange={(e) => setTempName(e.target.value)}
+                    required
                   />
                 </div>
               </div>
 
-              <button 
+              <button
                 type="submit"
-                disabled={!tempTable}
+                disabled={!tempTable || !user || !tempName}
                 className="w-full bg-brand-maroon text-white font-bold py-3.5 rounded-xl hover:bg-brand-burgundy disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-brand-maroon/20 mt-4 flex items-center justify-center gap-2"
               >
-                Confirm & Place Order <CheckCircle size={20} />
+                {user ? 'Confirm & Place Order' : 'Sign in to place order'} <CheckCircle size={20} />
               </button>
             </form>
           </div>

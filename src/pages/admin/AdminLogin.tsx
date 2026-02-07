@@ -1,24 +1,37 @@
-import React, { useState } from 'react';
-import { useApp } from '../../context/AppContext';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, AlertCircle, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../../context/AuthContext';
 
 export const AdminLogin = () => {
-  const [password, setPassword] = useState('');
   const [showError, setShowError] = useState(false);
-  const { loginAdmin } = useApp();
+  const [errorMessage, setErrorMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { signInWithGoogle } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Simple mock auth
-    if (password === 'admin123') {
-      loginAdmin();
+  const handleGoogleLogin = async () => {
+    try {
+      setLoading(true);
+      // Pass forAdmin=true to indicate this is an admin login
+      await signInWithGoogle(true);
+
+      // If we reach here, user is an admin (signInWithGoogle would have thrown otherwise)
       navigate('/admin/dashboard');
-    } else {
+    } catch (err: any) {
+      console.error('Admin login error:', err);
+
+      if (err.message === 'NOT_ADMIN') {
+        setErrorMessage('This Google account is not authorized for admin access.');
+      } else {
+        setErrorMessage('Failed to sign in with Google. Please try again.');
+      }
+
       setShowError(true);
       setTimeout(() => setShowError(false), 3000);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -33,12 +46,12 @@ export const AdminLogin = () => {
             exit={{ opacity: 0, y: -100, x: '-50%' }}
             className="fixed top-24 left-1/2 z-[60] max-w-md w-full mx-4"
           >
-            <motion.div 
-              animate={{ 
+            <motion.div
+              animate={{
                 scale: [1, 1.02, 1],
                 rotate: [0, -1, 1, -1, 0]
               }}
-              transition={{ 
+              transition={{
                 duration: 0.5,
                 repeat: 2
               }}
@@ -48,10 +61,12 @@ export const AdminLogin = () => {
                 <AlertCircle className="text-red-600" size={24} />
               </div>
               <div className="flex-grow">
-                <p className="font-bold text-red-600 text-sm">Invalid Password!</p>
-                <p className="text-gray-600 text-xs mt-0.5">Please check your credentials and try again.</p>
+                <p className="font-bold text-red-600 text-sm">Access Denied</p>
+                <p className="text-gray-600 text-xs mt-0.5">
+                  {errorMessage || 'Please check your credentials and try again.'}
+                </p>
               </div>
-              <button 
+              <button
                 onClick={() => setShowError(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
               >
@@ -71,24 +86,25 @@ export const AdminLogin = () => {
           <p className="text-gray-500">Secure access for restaurant staff only</p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-            <input 
-              type="password" 
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-maroon focus:border-transparent outline-none transition-all"
-              placeholder="Enter admin password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-          <button 
-            type="submit"
-            className="w-full bg-brand-maroon text-white font-bold py-3 rounded-lg hover:bg-brand-burgundy transition-colors shadow-lg shadow-brand-maroon/20"
+        <div className="space-y-4">
+          <button
+            type="button"
+            onClick={handleGoogleLogin}
+            disabled={loading}
+            className="w-full bg-brand-maroon text-white font-bold py-3 rounded-lg hover:bg-brand-burgundy transition-colors shadow-lg shadow-brand-maroon/20 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            Access Dashboard
+            {loading ? (
+              <span>Signing in...</span>
+            ) : (
+              <>
+                <span>Continue with Google</span>
+              </>
+            )}
           </button>
-        </form>
+          <p className="text-xs text-gray-400 text-center">
+            Only authorized staff Google accounts can access the admin dashboard.
+          </p>
+        </div>
       </div>
     </div>
   );

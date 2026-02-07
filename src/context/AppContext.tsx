@@ -1,14 +1,17 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Product, CartItem, Order } from '../types';
 import { INITIAL_PRODUCTS } from '../data/mockData';
+import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, query, orderBy } from 'firebase/firestore';
+import { db } from '../firebase';
 
 interface AppContextType {
   products: Product[];
+  productsLoading: boolean;
   cart: CartItem[];
   orders: Order[];
+  ordersLoading: boolean;
   tableNumber: string | null;
   customerName: string | null;
-  isAdminAuthenticated: boolean;
   toastVisible: boolean;
   toastMessage: string;
   toastProductName: string;
@@ -16,43 +19,85 @@ interface AppContextType {
   addToCart: (product: Product) => void;
   removeFromCart: (productId: string) => void;
   updateQuantity: (productId: string, delta: number) => void;
-  placeOrder: () => string | null;
-  loginAdmin: () => void;
-  logoutAdmin: () => void;
-  addProduct: (product: Product) => void;
+  placeOrder: () => Promise<string | null>;
+  addProduct: (product: Omit<Product, 'id'>) => Promise<void>;
   deleteProduct: (id: string) => void;
-  updateOrderStatus: (orderId: string, status: Order['status']) => void;
+  updateOrderStatus: (orderId: string, status: Order['status']) => Promise<void>;
   hideToast: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
-  const [products, setProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('yummy-products');
-    return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
-  });
+  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
+  const [productsLoading, setProductsLoading] = useState(true);
 
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [orders, setOrders] = useState<Order[]>(() => {
-    const saved = localStorage.getItem('yummy-orders');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
 
   const [tableNumber, setTableNumber] = useState<string | null>(localStorage.getItem('tableNumber'));
-  const [customerName, setCustomerName] = useState<string | null>(localStorage.getItem('customerName'));
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+  const [customerName, setCustomerName] = useState<string | null>(null);
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastProductName, setToastProductName] = useState('');
 
+  // Subscribe to Firestore products
   useEffect(() => {
-    localStorage.setItem('yummy-products', JSON.stringify(products));
-  }, [products]);
+    const productsRef = collection(db, 'products');
+    const unsubscribe = onSnapshot(
+      productsRef,
+      (snapshot) => {
+        console.log('📦 Products snapshot received:', snapshot.size, 'products');
 
+        if (snapshot.empty) {
+          console.log('⚠️ No products in Firestore, showing empty list');
+          setProducts([]);
+          setProductsLoading(false);
+          return;
+        }
+
+        const loadedProducts: Product[] = snapshot.docs.map((d) => {
+          const data = d.data();
+          console.log('Product:', d.id, data);
+          return {
+            ...(data as Omit<Product, 'id'>),
+            id: d.id,
+          };
+        });
+
+        console.log('✅ Loaded products:', loadedProducts);
+        setProducts(loadedProducts);
+        setProductsLoading(false);
+      },
+      (error) => {
+        console.error('❌ Error loading products from Firestore:', error);
+        console.error('Error code:', error.code);
+        console.error('Error message:', error.message);
+        // Fallback to empty array on error
+        setProducts([]);
+        setProductsLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  // Subscribe to Firestore orders (newest first)
   useEffect(() => {
-    localStorage.setItem('yummy-orders', JSON.stringify(orders));
-  }, [orders]);
+    const ordersRef = collection(db, 'orders');
+    const q = query(ordersRef, orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const loadedOrders: Order[] = snapshot.docs.map((d) => ({
+        ...(d.data() as Omit<Order, 'id'>),
+        id: d.id,
+      }));
+      setOrders(loadedOrders);
+      setOrdersLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (tableNumber) localStorage.setItem('tableNumber', tableNumber);
@@ -74,7 +119,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       }
       return [...prev, { ...product, quantity: 1 }];
     });
-    
+
     // Show toast notification
     setToastMessage('Added to cart!');
     setToastProductName(product.name);
@@ -99,15 +144,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }));
   };
 
-  const placeOrder = () => {
+  const placeOrder = async () => {
     if (!tableNumber || cart.length === 0) return null;
 
-    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const randomSuffix = Math.floor(100 + Math.random() * 900);
-    const orderId = `ORD-2026-${randomSuffix}`;
-
-    const newOrder: Order = {
-      id: orderId,
+    const newOrder: Omit<Order, 'id'> = {
       tableNumber,
       customerName: customerName || 'Guest',
       items: [...cart],
@@ -116,48 +156,47 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       createdAt: new Date().toISOString(),
     };
 
-    setOrders(prev => [newOrder, ...prev]);
+    const docRef = await addDoc(collection(db, 'orders'), newOrder);
     setCart([]);
 
-    localStorage.setItem('lastOrderId', orderId);
+    localStorage.setItem('lastOrderId', docRef.id);
 
-    return orderId;
+    return docRef.id;
   };
 
-  const addProduct = (product: Product) => {
-    setProducts(prev => [product, ...prev]);
+  const addProduct = async (product: Omit<Product, 'id'>) => {
+    await addDoc(collection(db, 'products'), {
+      name: product.name,
+      price: product.price,
+      offerPrice: product.offerPrice,
+      description: product.description,
+      category: product.category,
+      imageUrl: product.imageUrl,
+      isVeg: product.isVeg,
+    });
   };
 
-  const deleteProduct = (id: string) => {
-    setProducts(prev => prev.filter(p => p.id !== id));
+  const deleteProduct = async (id: string) => {
+    await deleteDoc(doc(db, 'products', id));
   };
 
-  const updateOrderStatus = (orderId: string, status: Order['status']) => {
-    setOrders(prev => prev.map(o => {
-      if (o.id === orderId) {
-        const updates: Partial<Order> = { status };
-        // If confirming, set the confirmedAt timestamp to start the timer
-        if (status === 'confirmed' && !o.confirmedAt) {
-          updates.confirmedAt = new Date().toISOString();
-        }
-        if (status === 'ready' && !o.readyAt) {
-          updates.readyAt = new Date().toISOString();
-        }
-        return { ...o, ...updates };
-      }
-      return o;
-    }));
+  const updateOrderStatus = async (orderId: string, status: Order['status']) => {
+    const updates: Partial<Order> = { status };
+    if (status === 'confirmed') {
+      updates.confirmedAt = new Date().toISOString();
+    }
+    if (status === 'ready') {
+      updates.readyAt = new Date().toISOString();
+    }
+    await updateDoc(doc(db, 'orders', orderId), updates as any);
   };
-
-  const loginAdmin = () => setIsAdminAuthenticated(true);
-  const logoutAdmin = () => setIsAdminAuthenticated(false);
 
   return (
     <AppContext.Provider value={{
-      products, cart, orders, tableNumber, customerName, isAdminAuthenticated,
+      products, productsLoading, cart, orders, ordersLoading, tableNumber, customerName,
       toastVisible, toastMessage, toastProductName,
       setTableInfo, addToCart, removeFromCart, updateQuantity, placeOrder,
-      loginAdmin, logoutAdmin, addProduct, deleteProduct, updateOrderStatus,
+      addProduct, deleteProduct, updateOrderStatus,
       hideToast
     }}>
       {children}

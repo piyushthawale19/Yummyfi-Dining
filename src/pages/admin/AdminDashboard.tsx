@@ -1,18 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
 import { Product, CATEGORIES, Order } from '../../types';
 import { fileToBase64, formatPrice, cn } from '../../utils/helpers';
 import {
   Plus, Trash2, Image as ImageIcon, X,
   LayoutDashboard, ClipboardList, Package,
   ChevronRight, Clock, CheckCircle, ChevronDown,
-  LogOut, ArrowLeft, Menu,
-  TrendingUp, ShoppingBag, DollarSign, FileText,
-  Eye, Edit2, Download, User, Phone, Printer, ChevronUp,
-  ListFilter, RefreshCw, Database, Flame
+  LogOut,
+  TrendingUp, ShoppingBag, DollarSign,
+  Eye, Download, User, Printer, ChevronUp,
+  ListFilter, Flame
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BillReceipt } from '../../components/BillReceipt';
+import { storage } from '../../firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 // --- HELPER COMPONENT FOR TIMER ---
 const OrderTimer = ({ confirmedAt }: { confirmedAt: string }) => {
@@ -140,7 +143,7 @@ const DashboardOrderCard = ({ order, onUpdateStatus }: { order: Order, onUpdateS
     <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 mb-6 hover:shadow-md transition-all">
       <div className="flex justify-between items-start mb-4">
         <div className="flex items-center gap-3">
-          <h3 className="text-lg font-bold text-gray-900 font-serif">Order #{order.id}</h3>
+          <h3 className="text-lg font-bold text-gray-900 font-serif">Order by {order.customerName}</h3>
           <span className={cn("px-3 py-1 rounded-full text-xs font-bold border", config.badge, "border-transparent")}>
             {config.label}
           </span>
@@ -237,7 +240,7 @@ const OrderManagementCard = ({ order, onUpdateStatus }: { order: Order, onUpdate
       <div className="p-5 pb-4">
         <div className="flex justify-between items-start mb-4">
           <div className="flex items-center gap-3">
-            <h3 className="text-xl font-bold text-gray-900 font-serif">Order #{order.id}</h3>
+            <h3 className="text-xl font-bold text-gray-900 font-serif">Order by {order.customerName}</h3>
             <span className={cn("flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold", config.bg, config.text)}>
               <StatusIcon size={12} /> {config.label}
             </span>
@@ -367,7 +370,8 @@ const OrderManagementCard = ({ order, onUpdateStatus }: { order: Order, onUpdate
 // --- MAIN DASHBOARD COMPONENT ---
 
 export const AdminDashboard = () => {
-  const { orders, products, addProduct, deleteProduct, updateOrderStatus, logoutAdmin } = useApp();
+  const { orders, ordersLoading, products, productsLoading, addProduct, deleteProduct, updateOrderStatus } = useApp();
+  const { signOut, user } = useAuth();
   const [activeView, setActiveView] = useState<'dashboard' | 'orders' | 'products'>('dashboard');
   const [orderFilter, setOrderFilter] = useState<'all' | 'pending' | 'confirmed' | 'ready' | 'completed'>('all');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -378,6 +382,9 @@ export const AdminDashboard = () => {
     name: '', price: 0, category: 'Main Course', description: '', isVeg: true,
   });
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageUrl, setImageUrl] = useState(''); // For direct URL input
+  const [uploadMethod, setUploadMethod] = useState<'file' | 'url'>('file');
   const [isUploading, setIsUploading] = useState(false);
 
   const pendingOrders = orders.filter(o => o.status === 'pending');
@@ -385,6 +392,68 @@ export const AdminDashboard = () => {
   const readyOrders = orders.filter(o => o.status === 'ready');
   const completedOrders = orders.filter(o => o.status === 'completed');
   const totalRevenue = completedOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+
+  // Handle sign out
+  const handleSignOut = async () => {
+    const confirmLogout = window.confirm('Are you sure you want to sign out from admin panel?');
+    if (confirmLogout) {
+      try {
+        // Use adminOnly=true to only sign out admin sessions
+        await signOut(true);
+        window.location.href = '/admin'; // Redirect to admin login
+      } catch (error) {
+        console.error('Sign-out failed:', error);
+        alert('Sign-out failed. Please try again.');
+      }
+    }
+  };
+
+  // Image compression utility
+  const compressImageToBase64 = async (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = (e) => {
+        const img = new Image();
+        img.src = e.target?.result as string;
+
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d')!;
+
+          // Resize to max 600px width for smaller file size
+          let width = img.width;
+          let height = img.height;
+          const maxWidth = 600;
+
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Compress with quality 0.7
+          const result = canvas.toDataURL('image/jpeg', 0.7);
+          const sizeKB = (result.length / 1024).toFixed(2);
+          console.log(`📸 Image compressed to ${sizeKB}KB`);
+
+          if (result.length > 900000) { // ~900KB limit
+            reject(new Error('Image still too large. Please use Image URL method instead.'));
+          } else {
+            resolve(result);
+          }
+        };
+
+        img.onerror = () => reject(new Error('Failed to load image'));
+      };
+
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+  };
 
   const filteredOrders = orders.filter(o => {
     if (orderFilter === 'all') return true;
@@ -400,30 +469,91 @@ export const AdminDashboard = () => {
       await new Promise(resolve => setTimeout(resolve, 800));
       const base64 = await fileToBase64(file);
       setImagePreview(base64);
-      setNewProduct(prev => ({ ...prev, imageUrl: base64 }));
+      setImageFile(file);
     } catch (err) { console.error(err); alert("Failed to process image"); }
     finally { setIsUploading(false); }
   };
 
-  const handleSubmitProduct = (e: React.FormEvent) => {
+  const handleSubmitProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newProduct.name || !newProduct.price || !newProduct.imageUrl) {
-      alert("Please fill all required fields."); return;
+
+    // Validate based on upload method
+    if (!newProduct.name || !newProduct.price) {
+      alert("Please fill name and price."); return;
     }
-    const product: Product = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: newProduct.name!,
-      price: Number(newProduct.price),
-      offerPrice: newProduct.offerPrice ? Number(newProduct.offerPrice) : undefined,
-      description: newProduct.description || '',
-      category: newProduct.category as string,
-      imageUrl: newProduct.imageUrl!,
-      isVeg: newProduct.isVeg || false,
-    };
-    addProduct(product);
-    setShowProductForm(false);
-    setNewProduct({ name: '', price: 0, category: 'Main Course', description: '', isVeg: true });
-    setImagePreview(null);
+
+    if (uploadMethod === 'url' && !imageUrl) {
+      alert("Please enter an image URL."); return;
+    }
+
+    if (uploadMethod === 'file' && !imageFile) {
+      alert("Please select an image file."); return;
+    }
+
+    setIsUploading(true);
+    try {
+      let finalImageUrl = '';
+
+      if (uploadMethod === 'url') {
+        // Method 1: Direct URL (no upload needed)
+        console.log('🔗 Using direct image URL');
+        finalImageUrl = imageUrl;
+      } else {
+        // Method 2: Upload to ImageKit first, then get URL
+        console.log('🖼️ Uploading to ImageKit...');
+        try {
+          const { uploadToImageKit } = await import('../../utils/imagekitUpload');
+          finalImageUrl = await uploadToImageKit(imageFile!);
+          console.log('✅ ImageKit upload successful:', finalImageUrl);
+        } catch (imagekitError: any) {
+          console.error('❌ ImageKit upload failed:', imagekitError);
+
+          // Fallback to compressed base64 if ImageKit fails
+          if (imagekitError.message?.includes('ImageKit configuration missing') || 
+              imagekitError.message?.includes('unsigned uploads')) {
+            alert('⚠️ ImageKit not configured properly.\n\n' + imagekitError.message + '\n\nUsing compressed image fallback for now.');
+            console.log('📦 Falling back to compressed base64...');
+            finalImageUrl = await compressImageToBase64(imageFile!);
+          } else {
+            throw imagekitError;
+          }
+        }
+      }
+
+      const product: Omit<Product, 'id'> = {
+        name: newProduct.name!,
+        price: Number(newProduct.price),
+        offerPrice: newProduct.offerPrice ? Number(newProduct.offerPrice) : undefined,
+        description: newProduct.description || '',
+        category: newProduct.category as string,
+        imageUrl: finalImageUrl,
+        isVeg: newProduct.isVeg || false,
+      };
+
+      await addProduct(product);
+      alert('✅ Product added successfully!');
+
+      setShowProductForm(false);
+      setNewProduct({ name: '', price: 0, category: 'Main Course', description: '', isVeg: true });
+      setImagePreview(null);
+      setImageFile(null);
+      setImageUrl('');
+    } catch (error: any) {
+      console.error('❌ Error adding product:', error);
+
+      if (error.message?.includes('longer than')) {
+        alert('❌ Image too large! Please:\n' +
+          '1. Use a smaller image, OR\n' +
+          '2. Use "Image URL" method and paste a link from:\n' +
+          '   • Google Drive\n' +
+          '   • Imgur (https://imgur.com)\n' +
+          '   • Any image hosting service');
+      } else {
+        alert(`❌ Error: ${error.message}`);
+      }
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -497,12 +627,35 @@ export const AdminDashboard = () => {
         </nav>
 
         <div className="p-4 mt-auto border-t border-gray-100">
-          <button onClick={logoutAdmin} className={cn(
-            "w-full flex items-center gap-3 py-4 text-gray-600 hover:text-red-600 transition-colors rounded-lg hover:bg-red-50",
-            sidebarCollapsed ? "justify-center px-2" : "px-6"
-          )}>
+          {/* Admin User Info */}
+          {!sidebarCollapsed && user && (
+            <div className="mb-3 px-2">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-8 h-8 rounded-full bg-brand-maroon text-white flex items-center justify-center text-xs font-bold">
+                  {user.displayName?.charAt(0) || user.email?.charAt(0) || 'A'}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-gray-700 truncate">
+                    {user.displayName || 'Admin'}
+                  </p>
+                  <p className="text-[10px] text-gray-400 truncate">
+                    {user.email}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <button
+            onClick={handleSignOut}
+            className={cn(
+              "w-full flex items-center gap-3 py-4 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors",
+              sidebarCollapsed ? "justify-center px-2" : "px-6"
+            )}
+            title="Sign Out"
+          >
             <LogOut size={20} />
-            {!sidebarCollapsed && <span className="font-medium">Logout</span>}
+            {!sidebarCollapsed && <span className="font-medium text-sm">Sign Out</span>}
           </button>
         </div>
       </aside>
@@ -524,10 +677,10 @@ export const AdminDashboard = () => {
 
             {/* Stats Row */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-              <StatCard icon={ShoppingBag} label="Active Orders" value={orders.filter(o => o.status !== 'completed').length} trend trendValue="+8%" />
-              <StatCard icon={Clock} label="Pending Confirmations" value={pendingOrders.length} />
-              <StatCard icon={CheckCircle} label="Completed Today" value={completedOrders.length} trend trendValue="+12%" />
-              <StatCard icon={DollarSign} label="Revenue Today" value={formatPrice(totalRevenue)} trend trendValue="+15%" />
+              <StatCard icon={ShoppingBag} label="Active Orders" value={ordersLoading ? '—' : orders.filter(o => o.status !== 'completed').length} trend trendValue="+8%" />
+              <StatCard icon={Clock} label="Pending Confirmations" value={ordersLoading ? '—' : pendingOrders.length} />
+              <StatCard icon={CheckCircle} label="Completed Today" value={ordersLoading ? '—' : completedOrders.length} trend trendValue="+12%" />
+              <StatCard icon={DollarSign} label="Revenue Today" value={ordersLoading ? '—' : formatPrice(totalRevenue)} trend trendValue="+15%" />
             </div>
 
             {/* Main Grid: Live Orders (Left) + Right Panel */}
@@ -543,7 +696,11 @@ export const AdminDashboard = () => {
                 </div>
 
                 <div className="space-y-6">
-                  {orders.filter(o => o.status !== 'completed').length > 0 ? (
+                  {ordersLoading ? (
+                    Array.from({ length: 3 }).map((_, idx) => (
+                      <div key={idx} className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 animate-pulse h-40" />
+                    ))
+                  ) : orders.filter(o => o.status !== 'completed').length > 0 ? (
                     orders.filter(o => o.status !== 'completed').slice(0, 5).map(order => (
                       <DashboardOrderCard key={order.id} order={order} onUpdateStatus={updateOrderStatus} />
                     ))
@@ -735,7 +892,11 @@ export const AdminDashboard = () => {
 
             {/* Orders Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {filteredOrders.length > 0 ? (
+              {ordersLoading ? (
+                Array.from({ length: 4 }).map((_, idx) => (
+                  <div key={idx} className="bg-white rounded-2xl shadow-sm border border-gray-100 h-48 animate-pulse" />
+                ))
+              ) : filteredOrders.length > 0 ? (
                 filteredOrders.map(order => (
                   <OrderManagementCard key={order.id} order={order} onUpdateStatus={updateOrderStatus} />
                 ))
@@ -766,31 +927,37 @@ export const AdminDashboard = () => {
             </div>
 
             <div className="grid grid-cols-1 gap-4">
-              {products.map(product => (
-                <div key={product.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4 group hover:shadow-md transition-all">
-                  <img src={product.imageUrl} className="w-20 h-20 rounded-lg object-cover bg-gray-100" />
-                  <div className="flex-1">
-                    <div className="flex justify-between items-start">
-                      <h4 className="font-bold text-xl text-gray-900 font-serif">{product.name}</h4>
-                      <span className="font-bold text-brand-maroon text-lg">{formatPrice(product.price)}</span>
+              {productsLoading ? (
+                Array.from({ length: 4 }).map((_, idx) => (
+                  <div key={idx} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 h-28 animate-pulse" />
+                ))
+              ) : (
+                products.map(product => (
+                  <div key={product.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4 group hover:shadow-md transition-all">
+                    <img src={product.imageUrl} className="w-20 h-20 rounded-lg object-cover bg-gray-100" />
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start">
+                        <h4 className="font-bold text-xl text-gray-900 font-serif">{product.name}</h4>
+                        <span className="font-bold text-brand-maroon text-lg">{formatPrice(product.price)}</span>
+                      </div>
+                      <p className="text-sm text-gray-500 mt-1">{product.category}</p>
+                      <div className="flex gap-2 mt-2">
+                        {product.isVeg ? (
+                          <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded border border-green-200">Veg</span>
+                        ) : (
+                          <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded border border-red-200">Non-Veg</span>
+                        )}
+                        {product.offerPrice && (
+                          <span className="text-xs font-bold text-brand-maroon bg-brand-cream px-2 py-1 rounded border border-brand-maroon/20">Offer Active</span>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-sm text-gray-500 mt-1">{product.category}</p>
-                    <div className="flex gap-2 mt-2">
-                      {product.isVeg ? (
-                        <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded border border-green-200">Veg</span>
-                      ) : (
-                        <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded border border-red-200">Non-Veg</span>
-                      )}
-                      {product.offerPrice && (
-                        <span className="text-xs font-bold text-brand-maroon bg-brand-cream px-2 py-1 rounded border border-brand-maroon/20">Offer Active</span>
-                      )}
-                    </div>
+                    <button onClick={() => deleteProduct(product.id)} className="p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors">
+                      <Trash2 size={20} />
+                    </button>
                   </div>
-                  <button onClick={() => deleteProduct(product.id)} className="p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors">
-                    <Trash2 size={20} />
-                  </button>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         )}
@@ -809,39 +976,98 @@ export const AdminDashboard = () => {
             </div>
 
             <form onSubmit={handleSubmitProduct} className="p-6 space-y-5">
-              {/* Image Upload UI */}
+              {/* Upload Method Selector */}
               <div className="space-y-2">
-                <label className="block text-sm font-bold text-gray-700">Product Image</label>
-                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-200 border-dashed rounded-xl hover:bg-gray-50 transition-colors relative group">
-                  <div className="space-y-1 text-center">
-                    {imagePreview ? (
-                      <div className="relative">
-                        <img src={imagePreview} alt="Preview" className="mx-auto h-48 object-contain rounded-lg shadow-sm" />
-                        <button
-                          type="button"
-                          onClick={(e) => { e.preventDefault(); setImagePreview(null); setNewProduct(p => ({ ...p, imageUrl: '' })) }}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white p-1.5 rounded-full shadow-md hover:bg-red-600"
-                        >
-                          <X size={14} />
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="mx-auto h-12 w-12 text-gray-400 flex items-center justify-center rounded-full bg-gray-100 mb-3">
-                          {isUploading ? <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-400"></div> : <ImageIcon size={24} />}
-                        </div>
-                        <div className="flex text-sm text-gray-600 justify-center">
-                          <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-bold text-brand-maroon hover:text-brand-burgundy">
-                            <span>Click to upload</span>
-                            <input id="file-upload" name="file-upload" type="file" className="sr-only" accept="image/*" onChange={handleImageUpload} />
-                          </label>
-                        </div>
-                        <p className="text-xs text-gray-500">PNG, JPG up to 5MB</p>
-                      </>
+                <label className="block text-sm font-bold text-gray-700">Image Upload Method</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setUploadMethod('file')}
+                    className={cn(
+                      "py-2.5 px-4 rounded-lg font-medium transition-all border-2",
+                      uploadMethod === 'file'
+                        ? "bg-brand-maroon text-white border-brand-maroon"
+                        : "bg-white text-gray-700 border-gray-200 hover:border-brand-maroon/30"
                     )}
-                  </div>
+                  >
+                    📂 Upload File
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setUploadMethod('url')}
+                    className={cn(
+                      "py-2.5 px-4 rounded-lg font-medium transition-all border-2",
+                      uploadMethod === 'url'
+                        ? "bg-brand-maroon text-white border-brand-maroon"
+                        : "bg-white text-gray-700 border-gray-200 hover:border-brand-maroon/30"
+                    )}
+                  >
+                    🔗 Image URL
+                  </button>
                 </div>
               </div>
+
+              {/* Image Upload UI - File Method */}
+              {uploadMethod === 'file' && (
+                <div className="space-y-2">
+                  <label className="block text-sm font-bold text-gray-700">Product Image</label>
+                  <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-200 border-dashed rounded-xl hover:bg-gray-50 transition-colors relative group">
+                    <div className="space-y-1 text-center">
+                      {imagePreview ? (
+                        <div className="relative">
+                          <img src={imagePreview} alt="Preview" className="mx-auto h-48 object-contain rounded-lg shadow-sm" />
+                          <button
+                            type="button"
+                            onClick={(e) => { e.preventDefault(); setImagePreview(null); setImageFile(null); }}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white p-1.5 rounded-full shadow-md hover:bg-red-600"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="mx-auto h-12 w-12 text-gray-400 flex items-center justify-center rounded-full bg-gray-100 mb-3">
+                            {isUploading ? <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-400"></div> : <ImageIcon size={24} />}
+                          </div>
+                          <div className="flex text-sm text-gray-600 justify-center">
+                            <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-bold text-brand-maroon hover:text-brand-burgundy">
+                              <span>Click to upload</span>
+                              <input id="file-upload" name="file-upload" type="file" className="sr-only" accept="image/*" onChange={handleImageUpload} />
+                            </label>
+                          </div>
+                          <p className="text-xs text-gray-500">PNG, JPG (max 10MB)</p>
+                          <p className="text-xs text-brand-maroon">☁️ Uploaded to Cloudinary (No CORS issues!)</p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Image URL Input Method */}
+              {uploadMethod === 'url' && (
+                <div className="space-y-2">
+                  <label className="block text-sm font-bold text-gray-700">Image URL</label>
+                  <input
+                    type="url"
+                    value={imageUrl}
+                    onChange={(e) => {
+                      setImageUrl(e.target.value);
+                      if (e.target.value) setImagePreview(e.target.value);
+                    }}
+                    placeholder="https://example.com/image.jpg"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-maroon/20 focus:border-brand-maroon outline-none transition-all"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    💡 Paste image URL from <a href="https://imgur.com/upload" target="_blank" className="text-brand-maroon underline">Imgur</a>, Google Drive, or any image host
+                  </p>
+                  {imagePreview && uploadMethod === 'url' && (
+                    <div className="mt-3">
+                      <img src={imagePreview} alt="Preview" className="mx-auto h-48 object-contain rounded-lg shadow-sm border border-gray-200" />
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Other Fields */}
               <div className="grid grid-cols-2 gap-4">
@@ -911,7 +1137,4 @@ export const AdminDashboard = () => {
   );
 };
 
-// Helper for Chevron Left
-const ChevronLeftIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
-);
+// Helper for Chevron Left (unused currently, kept for potential future use)

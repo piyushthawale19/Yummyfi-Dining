@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Firebase Products</title>
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // Replace with your Firebase config
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "ankit-yummyfi",
+            storageBucket: "ankit-yummyfi.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        async function checkProducts() {
+            const output = document.getElementById('output');
+            output.innerHTML = '<p>🔍 Checking Firestore for products...</p>';
+
+            try {
+                const productsRef = collection(db, 'products');
+                const snapshot = await getDocs(productsRef);
+                
+                output.innerHTML += `<p><strong>✅ Connected to Firestore!</strong></p>`;
+                output.innerHTML += `<p>📦 Found ${snapshot.size} products in database</p>`;
+                
+                if (snapshot.empty) {
+                    output.innerHTML += `<p class="error">⚠️ No products found in Firestore!</p>`;
+                    output.innerHTML += `<p>Go to <a href="/admin/dashboard">Admin Dashboard</a> to add products.</p>`;
+                } else {
+                    output.innerHTML += '<h3>Products:</h3><ul>';
+                    snapshot.docs.forEach(doc => {
+                        const data = doc.data();
+                        output.innerHTML += `<li><strong>${data.name}</strong> - ₹${data.price} (ID: ${doc.id})</li>`;
+                    });
+                    output.innerHTML += '</ul>';
+                }
+            } catch (error) {
+                output.innerHTML += `<p class="error">❌ Error: ${error.message}</p>`;
+                output.innerHTML += `<p class="error">Code: ${error.code}</p>`;
+            }
+        }
+
+        window.addEventListener('load', checkProducts);
+    </script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        #output {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .error {
+            color: #d32f2f;
+            font-weight: bold;
+        }
+        h1 {
+            color: #800020;
+        }
+        a {
+            color: #800020;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔎 Firebase Products Debugger</h1>
+    <div id="output">
+        <p>Loading...</p>
+    </div>
+</body>
+</html>

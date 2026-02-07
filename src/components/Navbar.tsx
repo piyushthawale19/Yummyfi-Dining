@@ -1,16 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { ShoppingCart, UtensilsCrossed, ChefHat, Menu, X } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { ShoppingCart, Menu, X, LogOut, ChevronDown } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { cn } from '../utils/helpers';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const Navbar = () => {
   const { cart, tableNumber } = useApp();
+  const { user, isAdmin, signOut } = useAuth();
   const location = useLocation();
-  const isAdmin = location.pathname.startsWith('/admin');
+  const navigate = useNavigate();
+  const isAdminRoute = location.pathname.startsWith('/admin');
   const [cartBounce, setCartBounce] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const prevCartLength = React.useRef(cart.length);
 
   useEffect(() => {
@@ -24,10 +28,37 @@ export const Navbar = () => {
   // Close mobile menu when route changes
   useEffect(() => {
     setIsMobileMenuOpen(false);
+    setIsUserMenuOpen(false);
   }, [location.pathname]);
 
+  // Handle sign out
+  const handleSignOut = async () => {
+    const isAdminSession = localStorage.getItem('isAdminSession') === 'true';
+    const confirmMessage = isAdminSession
+      ? 'Are you sure you want to sign out from admin session?'
+      : 'Are you sure you want to sign out? Your cart will be cleared.';
+
+    if (window.confirm(confirmMessage)) {
+      try {
+        await signOut(false); // Sign out completely (not admin-only)
+        setIsUserMenuOpen(false);
+
+        // If was admin session, redirect to admin login
+        if (isAdminSession) {
+          navigate('/admin');
+        } else {
+          // Regular user, just refresh the page
+          window.location.reload();
+        }
+      } catch (error) {
+        console.error('Sign-out failed:', error);
+        alert('Sign-out failed. Please try again.');
+      }
+    }
+  };
+
   // Don't show the main navbar on Admin Dashboard as it has its own sidebar
-  if (isAdmin && location.pathname.includes('dashboard')) return null;
+  if (isAdminRoute && location.pathname.includes('dashboard')) return null;
 
   return (
     <>
@@ -36,7 +67,7 @@ export const Navbar = () => {
       )}>
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           {/* Logo Section */}
-          <Link to={isAdmin ? "/admin" : "/"} className="flex items-center gap-3 group">
+          <Link to={isAdminRoute ? "/admin" : "/"} className="flex items-center gap-3 group">
             <img
               src="/542169443-ff628a00-4675-44b8-9fb4-6c3b6630590b.png"
               alt="Yummy-Fi Logo"
@@ -45,13 +76,13 @@ export const Navbar = () => {
             <div>
               <h1 className="text-xl sm:text-2xl font-bold leading-none text-brand-maroon font-serif">Yummy-Fi</h1>
               <p className="text-[10px] sm:text-xs text-brand-maroon/70 font-sans font-medium tracking-wide">
-                {isAdmin ? 'Admin Panel' : 'Restaurant System'}
+                {isAdminRoute ? 'Admin Panel' : 'Restaurant System'}
               </p>
             </div>
           </Link>
 
           {/* Center Navigation (Desktop Only) */}
-          {!isAdmin && (
+          {!isAdminRoute && (
             <div className="hidden md:flex items-center gap-8">
               <Link to="/" className="text-brand-maroon font-bold hover:text-brand-burgundy transition-colors">Menu</Link>
               <Link to="/track-order" className="text-gray-600 font-medium hover:text-brand-maroon transition-colors">Track Order</Link>
@@ -60,14 +91,14 @@ export const Navbar = () => {
 
           {/* Right Section */}
           <div className="flex items-center gap-3 sm:gap-4">
-            {!isAdmin && tableNumber && (
+            {!isAdminRoute && tableNumber && location.pathname !== '/' && (
               <span className="hidden lg:block text-sm font-bold text-brand-maroon bg-white px-4 py-1.5 rounded-full shadow-sm border border-brand-maroon/10">
                 Table {tableNumber}
               </span>
             )}
 
             {/* Desktop Cart */}
-            {!isAdmin && (
+            {!isAdminRoute && (
               <Link to="/cart" className="relative p-2 text-gray-800 hover:text-brand-maroon transition-colors hidden md:block">
                 <motion.div
                   animate={cartBounce ? {
@@ -91,7 +122,7 @@ export const Navbar = () => {
             )}
 
             {/* Mobile Cart & Menu Toggle */}
-            {!isAdmin && (
+            {!isAdminRoute && (
               <div className="flex items-center gap-4 md:hidden">
                 <Link to="/cart" className="relative text-gray-800">
                   <ShoppingCart size={24} strokeWidth={2} />
@@ -110,8 +141,77 @@ export const Navbar = () => {
               </div>
             )}
 
-            {isAdmin && (
-              <Link to="/" className="text-sm font-medium text-gray-500 hover:text-brand-maroon">Exit Admin</Link>
+
+
+            {/* User Profile Dropdown (Desktop) */}
+            {!isAdminRoute && user && (
+              <div className="relative hidden md:block">
+                <button
+                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white transition-colors border border-transparent hover:border-brand-maroon/20"
+                >
+                  <div className="w-8 h-8 rounded-full bg-brand-maroon text-white flex items-center justify-center text-sm font-bold">
+                    {user.displayName?.charAt(0) || user.email?.charAt(0) || 'U'}
+                  </div>
+                  <div className="hidden lg:block text-left">
+                    <p className="text-xs font-bold text-gray-700 leading-none">
+                      {user.displayName || 'User'}
+                    </p>
+                    <p className="text-[10px] text-gray-400 leading-none mt-0.5">
+                      {isAdmin ? 'Admin' : 'Customer'}
+                    </p>
+                  </div>
+                  <ChevronDown size={16} className={cn(
+                    "text-gray-400 transition-transform",
+                    isUserMenuOpen && "rotate-180"
+                  )} />
+                </button>
+
+                {/* Dropdown Menu */}
+                <AnimatePresence>
+                  {isUserMenuOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50"
+                    >
+                      {/* User Info */}
+                      <div className="p-4 bg-brand-cream border-b border-gray-100">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-brand-maroon text-white flex items-center justify-center text-sm font-bold">
+                            {user.displayName?.charAt(0) || user.email?.charAt(0) || 'U'}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-gray-700 truncate">
+                              {user.displayName || 'User'}
+                            </p>
+                            <p className="text-xs text-gray-500 truncate">
+                              {user.email}
+                            </p>
+                          </div>
+                        </div>
+                        {isAdmin && (
+                          <div className="mt-2 px-2 py-1 bg-brand-maroon/10 rounded text-xs font-bold text-brand-maroon text-center">
+                            Admin Account
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Menu Items */}
+                      <div className="p-2">
+                        <button
+                          onClick={handleSignOut}
+                          className="w-full flex items-center gap-3 px-4 py-3 text-left text-gray-700 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors"
+                        >
+                          <LogOut size={18} />
+                          <span className="font-medium">Sign Out</span>
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             )}
           </div>
         </div>
@@ -172,6 +272,37 @@ export const Navbar = () => {
             </div>
 
             <div className="mt-auto p-8 bg-brand-offWhite">
+              {/* User Profile in Mobile Menu */}
+              {user && (
+                <div className="mb-6 p-4 bg-white rounded-xl shadow-sm border border-gray-100">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-12 h-12 rounded-full bg-brand-maroon text-white flex items-center justify-center text-lg font-bold">
+                      {user.displayName?.charAt(0) || user.email?.charAt(0) || 'U'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-gray-700 truncate">
+                        {user.displayName || 'User'}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {user.email}
+                      </p>
+                      {isAdmin && (
+                        <span className="inline-block mt-1 px-2 py-0.5 bg-brand-maroon/10 rounded text-[10px] font-bold text-brand-maroon">
+                          Admin
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleSignOut}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors font-medium text-sm"
+                  >
+                    <LogOut size={18} />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              )}
+
               <p className="text-center text-xs text-gray-400 font-medium">
                 Yummy-Fi Restaurant System
               </p>
