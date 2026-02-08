@@ -4,7 +4,7 @@ import { ProductCard } from '../components/ProductCard';
 export const UserMenu = () => {
   const { products, productsLoading } = useApp();
 
-  console.log('UserMenu - Products:', products.length, 'Loading:', productsLoading);
+  // Removed debug logging to avoid spamming production logs
 
   return (
     <div className="min-h-screen pb-24 bg-brand-offWhite">

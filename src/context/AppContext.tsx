@@ -19,7 +19,7 @@ interface AppContextType {
   updateQuantity: (productId: string, delta: number) => void;
   placeOrder: (orderTableNumber?: string, orderCustomerName?: string) => Promise<string | null>;
   addProduct: (product: Omit<Product, 'id'>) => Promise<void>;
-  deleteProduct: (id: string) => void;
+  deleteProduct: (id: string) => Promise<void>;
   updateOrderStatus: (orderId: string, status: Order['status']) => Promise<void>;
   deleteOrder: (orderId: string) => Promise<void>;
 }
@@ -39,16 +39,18 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const { showSuccess } = useToast();
 
+  const isDev = import.meta.env.DEV;
+
   // Subscribe to Firestore products
   useEffect(() => {
     const productsRef = collection(db, 'products');
     const unsubscribe = onSnapshot(
       productsRef,
       (snapshot) => {
-        console.log('📦 Products snapshot received:', snapshot.size, 'products');
+        if (isDev) console.log('📦 Products snapshot received:', snapshot.size, 'products');
 
         if (snapshot.empty) {
-          console.log('⚠️ No products in Firestore, showing empty list');
+          if (isDev) console.log('⚠️ No products in Firestore, showing empty list');
           setProducts([]);
           setProductsLoading(false);
           return;
@@ -56,14 +58,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
         const loadedProducts: Product[] = snapshot.docs.map((d) => {
           const data = d.data();
-          console.log('Product:', d.id, data);
+          if (isDev) console.log('Product:', d.id, data);
           return {
             ...(data as Omit<Product, 'id'>),
             id: d.id,
           };
         });
 
-        console.log('✅ Loaded products:', loadedProducts);
+        if (isDev) console.log('✅ Loaded products:', loadedProducts);
         setProducts(loadedProducts);
         setProductsLoading(false);
       },
@@ -84,14 +86,23 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const ordersRef = collection(db, 'orders');
     const q = query(ordersRef, orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const loadedOrders: Order[] = snapshot.docs.map((d) => ({
-        ...(d.data() as Omit<Order, 'id'>),
-        id: d.id,
-      }));
-      setOrders(loadedOrders);
-      setOrdersLoading(false);
-    });
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const loadedOrders: Order[] = snapshot.docs.map((d) => ({
+          ...(d.data() as Omit<Order, 'id'>),
+          id: d.id,
+        }));
+        setOrders(loadedOrders);
+        setOrdersLoading(false);
+      },
+      (error) => {
+        console.error('❌ Error loading orders from Firestore:', error);
+        // Fallback to empty orders list and clear loading flag so UI doesn't hang
+        setOrders([]);
+        setOrdersLoading(false);
+      }
+    );
 
     return () => unsubscribe();
   }, []);

@@ -826,66 +826,6 @@ export const AdminDashboard = () => {
                     </div>
                   </button>
                 </div>
-
-                {/* Recent Activity Card */}
-                {/* <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100"> */}
-                {/* <div className="flex justify-between items-center mb-6"> */}
-                {/* <h3 className="text-xl font-bold text-brand-maroon font-serif">Recent Activity</h3>
-                    <button className="text-xs font-bold text-brand-maroon hover:underline">View All</button>
-                  </div> */}
-
-                {/* <div className="space-y-6 relative before:absolute before:left-[19px] before:top-2 before:bottom-2 before:w-[2px] before:bg-gray-100"> */}
-                {/* Mock Activity Items */}
-                {/* <div className="relative pl-10">
-                      <div className="absolute left-0 top-0 w-10 h-10 flex items-center justify-center bg-white">
-                        <ShoppingBag size={16} className="text-brand-maroon" />
-                      </div>
-                      <p className="text-sm text-gray-800 font-medium leading-snug">
-                        New order <span className="font-bold">#ORD-2401-1547</span> received from Priya Sharma
-                      </p>
-                      <span className="text-xs text-gray-400 mt-1 block flex items-center gap-1">
-                        <Clock size={10} /> 2 minutes ago
-                      </span>
-                    </div>
-
-                    <div className="relative pl-10">
-                      <div className="absolute left-0 top-0 w-10 h-10 flex items-center justify-center bg-white">
-                        <CheckCircle size={16} className="text-brand-maroon" />
-                      </div>
-                      <p className="text-sm text-gray-800 font-medium leading-snug">
-                        Order <span className="font-bold">#ORD-2401-1546</span> marked as completed
-                      </p>
-                      <span className="text-xs text-gray-400 mt-1 block flex items-center gap-1">
-                        <Clock size={10} /> 8 minutes ago
-                      </span>
-                    </div>
-
-                    <div className="relative pl-10">
-                      <div className="absolute left-0 top-0 w-10 h-10 flex items-center justify-center bg-white">
-                        <Edit2 size={16} className="text-gray-500" />
-                      </div>
-                      <p className="text-sm text-gray-800 font-medium leading-snug">
-                        Menu item "Paneer Butter Masala" updated with new price
-                      </p>
-                      <span className="text-xs text-gray-400 mt-1 block flex items-center gap-1">
-                        <Clock size={10} /> 15 minutes ago
-                      </span>
-                    </div>
-
-                    <div className="relative pl-10">
-                      <div className="absolute left-0 top-0 w-10 h-10 flex items-center justify-center bg-white">
-                        <Database size={16} className="text-green-600" />
-                      </div>
-                      <p className="text-sm text-gray-800 font-medium leading-snug">
-                        Daily backup completed successfully
-                      </p>
-                      <span className="text-xs text-gray-400 mt-1 block flex items-center gap-1">
-                        <Clock size={10} /> 1 hour ago
-                      </span>
-                    </div>
-                  </div> */}
-                {/* </div> */}
-
               </div>
             </div>
           </div>
@@ -1019,7 +959,18 @@ export const AdminDashboard = () => {
                         )}
                       </div>
                     </div>
-                    <button onClick={() => deleteProduct(product.id)} className="p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors">
+                    <button
+                      onClick={async () => {
+                        try {
+                          await deleteProduct(product.id);
+                          showSuccess('Product deleted', '✅ Deleted');
+                        } catch (err) {
+                          console.error('Failed to delete product', err);
+                          showError('Failed to delete product');
+                        }
+                      }}
+                      className="p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                    >
                       <Trash2 size={20} />
                     </button>
                   </div>
@@ -1103,7 +1054,7 @@ export const AdminDashboard = () => {
                             </label>
                           </div>
                           <p className="text-xs text-gray-500">PNG, JPG (max 10MB)</p>
-                          <p className="text-xs text-brand-maroon">☁️ Uploaded to Cloudinary (No CORS issues!)</p>
+                          <p className="text-xs text-brand-maroon">☁️ Uploaded to ImageKit (No CORS issues!)</p>
                         </>
                       )}
                     </div>
