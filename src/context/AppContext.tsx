@@ -17,11 +17,12 @@ interface AppContextType {
   addToCart: (product: Product) => void;
   removeFromCart: (productId: string) => void;
   updateQuantity: (productId: string, delta: number) => void;
-  placeOrder: (orderTableNumber?: string, orderCustomerName?: string) => Promise<string | null>;
+  placeOrder: (orderTableNumber?: string, orderCustomerName?: string, orderCustomerEmail?: string) => Promise<string | null>;
   addProduct: (product: Omit<Product, 'id'>) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
   updateOrderStatus: (orderId: string, status: Order['status']) => Promise<void>;
   deleteOrder: (orderId: string) => Promise<void>;
+  cancelOrder: (orderId: string, cancelledBy: 'user' | 'admin') => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -146,7 +147,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }));
   };
 
-  const placeOrder = async (orderTableNumber?: string, orderCustomerName?: string) => {
+  const placeOrder = async (orderTableNumber?: string, orderCustomerName?: string, orderCustomerEmail?: string) => {
     // Use arguments if provided, otherwise fall back to state
     const finalTableNumber = orderTableNumber || tableNumber;
     const finalCustomerName = orderCustomerName || customerName;
@@ -156,6 +157,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const newOrder: Omit<Order, 'id'> = {
       tableNumber: finalTableNumber,
       customerName: finalCustomerName || 'Guest',
+      customerEmail: orderCustomerEmail || undefined,
       items: [...cart],
       totalAmount: cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
       status: 'pending',
@@ -207,11 +209,25 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const cancelOrder = async (orderId: string, cancelledBy: 'user' | 'admin') => {
+    try {
+      await updateDoc(doc(db, 'orders', orderId), {
+        status: 'cancelled',
+        cancelledAt: new Date().toISOString(),
+        cancelledBy: cancelledBy
+      });
+      console.log(`❌ Order ${orderId} cancelled by ${cancelledBy}`);
+    } catch (error) {
+      console.error(`❌ Error cancelling order ${orderId}:`, error);
+      throw error;
+    }
+  };
+
   return (
     <AppContext.Provider value={{
       products, productsLoading, cart, orders, ordersLoading, tableNumber, customerName,
       setTableInfo, addToCart, removeFromCart, updateQuantity, placeOrder,
-      addProduct, deleteProduct, updateOrderStatus, deleteOrder
+      addProduct, deleteProduct, updateOrderStatus, deleteOrder, cancelOrder
     }}>
       {children}
     </AppContext.Provider>

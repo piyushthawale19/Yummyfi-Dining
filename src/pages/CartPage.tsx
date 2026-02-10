@@ -60,8 +60,8 @@ export const CartPage = () => {
 
         setTableInfo(tempTable, finalName);
 
-        // Pass the table number and name DIRECTLY to placeOrder
-        const orderId = await placeOrder(tempTable, finalName);
+        // Pass the table number, name, and email DIRECTLY to placeOrder
+        const orderId = await placeOrder(tempTable, finalName, user.email || undefined);
         if (orderId) {
           navigate('/track-order');
         }

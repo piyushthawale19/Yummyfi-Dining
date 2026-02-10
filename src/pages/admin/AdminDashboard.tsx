@@ -11,7 +11,7 @@ import {
   LogOut,
   TrendingUp, ShoppingBag, DollarSign,
   Eye, Download, User, Printer, ChevronUp,
-  ListFilter, Flame
+  ListFilter, Flame, XCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BillReceipt } from '../../components/BillReceipt';
@@ -220,7 +220,11 @@ const DashboardOrderCard = ({ order, onUpdateStatus }: { order: Order, onUpdateS
 };
 
 // Detailed Card for Orders View
-const OrderManagementCard = ({ order, onUpdateStatus }: { order: Order, onUpdateStatus: any }) => {
+const OrderManagementCard = ({ order, onUpdateStatus, onCancelOrder }: { 
+  order: Order, 
+  onUpdateStatus: any,
+  onCancelOrder: (orderId: string) => void 
+}) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showBillReceipt, setShowBillReceipt] = useState(false);
 
@@ -229,6 +233,7 @@ const OrderManagementCard = ({ order, onUpdateStatus }: { order: Order, onUpdate
     confirmed: { label: 'In Kitchen', bg: 'bg-brand-maroon', text: 'text-white', icon: Flame },
     ready: { label: 'Ready', bg: 'bg-green-600', text: 'text-white', icon: CheckCircle },
     completed: { label: 'Completed', bg: 'bg-gray-500', text: 'text-white', icon: CheckCircle },
+    cancelled: { label: 'Cancelled', bg: 'bg-red-500', text: 'text-white', icon: XCircle },
   };
 
   const config = statusConfig[order.status as keyof typeof statusConfig] || statusConfig.pending;
@@ -239,15 +244,39 @@ const OrderManagementCard = ({ order, onUpdateStatus }: { order: Order, onUpdate
       {/* Card Header */}
       <div className="p-5 pb-4">
         <div className="flex justify-between items-start mb-4">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-1">
             <h3 className="text-xl font-bold text-gray-900 font-serif">Order by {order.customerName}</h3>
             <span className={cn("flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold", config.bg, config.text)}>
               <StatusIcon size={12} /> {config.label}
             </span>
+            {/* Admin Cancel Button - On right end, in front of User Name */}
+            {order.status !== 'completed' && order.status !== 'cancelled' && (
+              <button
+                onClick={() => onCancelOrder(order.id)}
+                className="ml-auto bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 hover:border-red-300 px-3 py-1.5 rounded-lg font-bold text-xs transition-all flex items-center gap-1.5 shadow-sm hover:shadow"
+                title="Cancel Order (Admin)"
+              >
+                <XCircle size={14} />
+                Cancel
+              </button>
+            )}
           </div>
-          <div className="flex flex-col items-center justify-center bg-brand-yellow text-brand-maroon w-12 h-12 rounded-xl shadow-sm">
-            <span className="text-[10px] font-bold uppercase leading-none">Table</span>
-            <span className="text-xl font-bold leading-none">{order.tableNumber}</span>
+          <div className="flex flex-col items-center gap-2 ml-4">
+            <div className="flex flex-col items-center justify-center bg-brand-yellow text-brand-maroon w-12 h-12 rounded-xl shadow-sm">
+              <span className="text-[10px] font-bold uppercase leading-none">Table</span>
+              <span className="text-xl font-bold leading-none">{order.tableNumber}</span>
+            </div>
+            {/* Admin Cancel Button - Below Table Number */}
+            {order.status !== 'completed' && order.status !== 'cancelled' && (
+              <button
+                onClick={() => onCancelOrder(order.id)}
+                className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 hover:border-red-300 px-2 py-1 rounded-lg font-bold text-[10px] transition-all flex items-center gap-1 shadow-sm hover:shadow whitespace-nowrap"
+                title="Cancel Order (Admin)"
+              >
+                <XCircle size={10} />
+                Cancel
+              </button>
+            )}
           </div>
         </div>
 
@@ -370,11 +399,11 @@ const OrderManagementCard = ({ order, onUpdateStatus }: { order: Order, onUpdate
 // --- MAIN DASHBOARD COMPONENT ---
 
 export const AdminDashboard = () => {
-  const { orders, ordersLoading, products, productsLoading, addProduct, deleteProduct, updateOrderStatus, deleteOrder } = useApp();
+  const { orders, ordersLoading, products, productsLoading, addProduct, deleteProduct, updateOrderStatus, deleteOrder, cancelOrder } = useApp();
   const { signOut, user } = useAuth();
   const { showConfirm, showSuccess, showError, showWarning } = useToast();
   const [activeView, setActiveView] = useState<'dashboard' | 'orders' | 'products'>('dashboard');
-  const [orderFilter, setOrderFilter] = useState<'all' | 'pending' | 'confirmed' | 'ready' | 'completed'>('all');
+  const [orderFilter, setOrderFilter] = useState<'all' | 'pending' | 'confirmed' | 'ready' | 'completed' | 'cancelled'>('all');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // --- BUSINESS DAY LOGIC (4 AM to 4 AM) ---
@@ -436,6 +465,7 @@ export const AdminDashboard = () => {
   const confirmedOrders = todaysOrders.filter(o => o.status === 'confirmed');
   const readyOrders = todaysOrders.filter(o => o.status === 'ready');
   const completedOrders = todaysOrders.filter(o => o.status === 'completed');
+  const cancelledOrders = todaysOrders.filter(o => o.status === 'cancelled');
   const totalRevenue = completedOrders.reduce((sum, o) => sum + o.totalAmount, 0);
 
   // Handle sign out
@@ -456,6 +486,26 @@ export const AdminDashboard = () => {
       'Sign Out',
       'Cancel',
       '🚪 Admin Sign Out'
+    );
+  };
+
+  // Handle order cancellation by admin
+  const handleCancelOrder = (orderId: string) => {
+    showConfirm(
+      'Are you sure you want to cancel this order? The customer will be notified.',
+      async () => {
+        try {
+          await cancelOrder(orderId, 'admin');
+          showSuccess('Order cancelled successfully', '✓ Cancelled');
+        } catch (error) {
+          console.error('Error cancelling order:', error);
+          showError('Failed to cancel order. Please try again.');
+        }
+      },
+      undefined,
+      'Cancel Order',
+      'Go Back',
+      '⚠️ Cancel Order'
     );
   };
 
@@ -843,7 +893,7 @@ export const AdminDashboard = () => {
             {/* Status Filters */}
             <div className="mb-4">
               <p className="text-sm font-bold text-gray-700 mb-3 font-serif">Filter by Status</p>
-              <div className="grid grid-cols-5 gap-4">
+              <div className="grid grid-cols-6 gap-4">
                 <FilterCard
                   label="All Orders"
                   count={orders.length}
@@ -866,13 +916,6 @@ export const AdminDashboard = () => {
                   icon={CheckCircle}
                 />
                 <FilterCard
-                  label="In Kitchen"
-                  count={confirmedOrders.length}
-                  active={orderFilter === 'confirmed'}
-                  onClick={() => setOrderFilter('confirmed')}
-                  icon={Flame}
-                />
-                <FilterCard
                   label="Ready"
                   count={readyOrders.length}
                   active={orderFilter === 'ready'}
@@ -885,6 +928,13 @@ export const AdminDashboard = () => {
                   active={orderFilter === 'completed'}
                   onClick={() => setOrderFilter('completed')}
                   icon={CheckCircle}
+                />
+                <FilterCard
+                  label="Cancelled"
+                  count={cancelledOrders.length}
+                  active={orderFilter === 'cancelled'}
+                  onClick={() => setOrderFilter('cancelled')}
+                  icon={XCircle}
                 />
               </div>
             </div>
@@ -905,7 +955,12 @@ export const AdminDashboard = () => {
                 ))
               ) : filteredOrders.length > 0 ? (
                 filteredOrders.map(order => (
-                  <OrderManagementCard key={order.id} order={order} onUpdateStatus={updateOrderStatus} />
+                  <OrderManagementCard 
+                    key={order.id} 
+                    order={order} 
+                    onUpdateStatus={updateOrderStatus}
+                    onCancelOrder={handleCancelOrder}
+                  />
                 ))
               ) : (
                 <div className="col-span-2 text-center py-20 bg-white rounded-2xl border border-dashed border-gray-300">

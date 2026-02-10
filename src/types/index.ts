@@ -18,12 +18,15 @@ export interface Order {
   id: string;
   tableNumber: string;
   customerName?: string;
+  customerEmail?: string; // Added for better user verification
   items: CartItem[];
   totalAmount: number;
-  status: 'pending' | 'confirmed' | 'ready' | 'completed';
+  status: 'pending' | 'confirmed' | 'ready' | 'completed' | 'cancelled';
   createdAt: string;
   confirmedAt?: string; // New field to track when timer starts
   readyAt?: string; // Field to track when order is marked ready
+  cancelledAt?: string; // Field to track when order was cancelled
+  cancelledBy?: 'user' | 'admin'; // Track who cancelled the order
 }
 
 export type Category = 'All' | 'Main Course' | 'Rice & Biryani' | 'Starters' | 'Breads' | 'Desserts';
