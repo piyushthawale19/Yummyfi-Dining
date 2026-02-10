@@ -1,22 +1,42 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { formatPrice } from '../utils/helpers';
-import { CheckCircle, Flame, MapPin, ShoppingBag, Clock, Loader2, ChefHat, UtensilsCrossed, Bell } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { CheckCircle, Flame, MapPin, ShoppingBag, Clock, Loader2, ChefHat, UtensilsCrossed, Bell, XCircle } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const TrackOrderPage = () => {
-  const { orders, ordersLoading } = useApp();
+  const { orders, ordersLoading, cancelOrder } = useApp();
+  const { user } = useAuth();
+  const { showConfirm, showSuccess, showError } = useToast();
+  const navigate = useNavigate();
   const [order, setOrder] = useState<any>(null);
   const [timeLeft, setTimeLeft] = useState(20 * 60);
 
+  // Redirect to home if user is not authenticated
   useEffect(() => {
-    if (ordersLoading) return;
+    if (!user) {
+      showError('Please Order to track them');
+      navigate('/');
+    }
+  }, [user, navigate, showError]);
+
+  useEffect(() => {
+    if (ordersLoading || !user) return;
 
     const lastOrderId = localStorage.getItem('lastOrderId');
     if (lastOrderId) {
       const foundOrder = orders.find(o => o.id === lastOrderId);
-      if (foundOrder) {
+      
+      // Verify the order belongs to the current user (by email or name)
+      const isUserOrder = foundOrder && (
+        foundOrder.customerEmail === user.email ||
+        foundOrder.customerName === user.displayName
+      );
+      
+      if (isUserOrder) {
         setOrder(foundOrder);
 
         if (foundOrder.status === 'confirmed' && foundOrder.confirmedAt) {
@@ -34,9 +54,13 @@ export const TrackOrderPage = () => {
         } else if (foundOrder.status === 'completed') {
           setTimeLeft(0);
         }
+      } else if (foundOrder) {
+        // Order exists but doesn't belong to current user - clear it
+        localStorage.removeItem('lastOrderId');
+        setOrder(null);
       }
     }
-  }, [orders, ordersLoading]);
+  }, [orders, ordersLoading, user]);
 
   useEffect(() => {
     if (!order || order.status !== 'confirmed' || timeLeft <= 0) return;
@@ -52,6 +76,27 @@ export const TrackOrderPage = () => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const handleCancelOrder = () => {
+    if (!order) return;
+    
+    showConfirm(
+      'Are you sure you want to cancel this order? This action cannot be undone.',
+      async () => {
+        try {
+          await cancelOrder(order.id, 'user');
+          showSuccess('Order cancelled successfully', '✓ Cancelled');
+          // Clear the last order ID from localStorage
+          localStorage.removeItem('lastOrderId');
+          // Navigate back to menu
+          navigate('/');
+        } catch (error) {
+          console.error('Error cancelling order:', error);
+          showError('Failed to cancel order. Please try again.');
+        }
+      }
+    );
   };
 
   const totalTime = 20 * 60;
@@ -74,6 +119,11 @@ export const TrackOrderPage = () => {
     { label: 'Ready', icon: Bell, description: 'Ready for pickup' },
     { label: 'Completed', icon: CheckCircle, description: 'Enjoy your meal!' },
   ];
+
+  // Don't render anything if user is not authenticated (will redirect)
+  if (!user) {
+    return null;
+  }
 
   if (ordersLoading) {
     return (
@@ -132,7 +182,8 @@ export const TrackOrderPage = () => {
             {order.status === 'pending' ? '⏳ Waiting for confirmation...' :
               order.status === 'ready' ? '🎉 Your order is ready!' :
                 order.status === 'completed' ? '✅ Order completed' :
-                  '👨‍🍳 Your meal is being prepared'}
+                  order.status === 'cancelled' ? '❌ Order cancelled' :
+                    '👨‍🍳 Your meal is being prepared'}
           </p>
         </motion.div>
       </div>
@@ -351,6 +402,43 @@ export const TrackOrderPage = () => {
           </motion.div>
         )}
 
+        {/* Cancelled State */}
+        {order.status === 'cancelled' && (
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-gradient-to-br from-red-50 to-orange-50 rounded-3xl shadow-xl p-10 mb-6 flex flex-col items-center justify-center text-center border-2 border-red-200"
+          >
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", stiffness: 200, damping: 15 }}
+              className="w-20 h-20 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center mb-4 shadow-lg"
+            >
+              <XCircle size={40} className="text-white" />
+            </motion.div>
+            <h3 className="text-2xl font-bold text-red-700 font-serif mb-2">Order Cancelled</h3>
+            <p className="text-red-600 max-w-md mb-4">
+              This order was cancelled {order.cancelledBy === 'admin' ? 'by the restaurant' : 'by you'} on{' '}
+              {order.cancelledAt && new Date(order.cancelledAt).toLocaleString('en-IN', { 
+                day: '2-digit', 
+                month: 'short', 
+                year: 'numeric', 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                hour12: true 
+              })}
+            </p>
+            <Link
+              to="/"
+              className="mt-4 bg-brand-maroon text-white font-bold py-3 px-8 rounded-xl hover:bg-brand-burgundy transition-all shadow-lg"
+            >
+              Back to Menu
+            </Link>
+          </motion.div>
+        )}
+
         {/* Order Details Card */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -406,6 +494,24 @@ export const TrackOrderPage = () => {
               <span className="text-2xl sm:text-3xl">{formatPrice(order.totalAmount)}</span>
             </div>
           </div>
+
+          {/* User Cancel Button - Only show if order is not completed or already cancelled */}
+          {order.status !== 'completed' && order.status !== 'cancelled' && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="mb-6"
+            >
+              <button
+                onClick={handleCancelOrder}
+                className="w-full bg-red-50 hover:bg-red-100 text-red-700 border-2 border-red-300 hover:border-red-400 font-bold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
+              >
+                <XCircle size={20} />
+                Cancel Order
+              </button>
+            </motion.div>
+          )}
 
           {/* Payment Notice */}
           <motion.div
