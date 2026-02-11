@@ -147,8 +147,7 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
     receiptLines.push(centerText("* THANK YOU FOR DINING WITH US! *"));
     receiptLines.push(centerText("PLEASE VISIT AGAIN"));
 
-    // Keep a very small feed gap so cutter/manual tear is comfortable,
-    // but avoid long blank paper feed on thermal printers.
+    // 🔥 Extra feed lines so paper comes out fully (no feed button)
     for (let i = 0; i < 2; i++) receiptLines.push(" ");
 
     const receiptText = receiptLines.join("\n");
@@ -157,7 +156,7 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
     if (!printWindow) return;
 
     printWindow.document.write(`
-<!DOCTYPE html>
+@DOCTYPE html
 <html>
 <head>
   <meta charset="UTF-8" />
@@ -172,35 +171,35 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
       margin: 0;
       padding: 0;
       background: #fff;
-      width: 72mm;
     }
 
+    body {
+      margin: 0;
+      padding: 0;
+      width: 72mm;
+      overflow: hidden;
+    }
+
+    /* ✅ BEST FIX FOR YOUR PRINTER:
+       Instead of "left: mm", we push content using padding-left.
+       This fixes hardware-left-margin printers. */
     .receipt {
       width: 72mm;
       margin: 0;
-      box-sizing: border-box;
-      padding: 0 1.5mm;
+
+      /* ⭐ MAIN CENTER FIX */
+      padding-left: 6mm;
+      padding-right: 0mm;
     }
 
     pre {
       margin: 0;
-      font-family: "Courier New", monospace;
-      font-size: 13px;
-      font-weight: 700;
-      line-height: 1.2;
-      letter-spacing: 0;
+      font-family: monospace;
+      font-size: 12px;
+      font-weight: 700; /* little bolder like sample */
+      line-height: 1.25;
       white-space: pre;
-    }
-
-    @media print {
-      html, body {
-        width: 72mm;
-        min-width: 72mm;
-      }
-
-      .receipt {
-        width: 72mm;
-      }
+      page-break-after: avoid;
     }
   </style>
 </head>
@@ -451,3 +450,5 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
     </AnimatePresence>
   );
 };
+
+ 
