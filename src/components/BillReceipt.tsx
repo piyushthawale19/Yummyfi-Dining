@@ -11,10 +11,12 @@ interface BillReceiptProps {
   onClose: () => void;
 }
 
+// Format price with Rs. prefix for thermal printer compatibility
 const formatPrintPrice = (price: number): string => {
   return `Rs.${price.toFixed(2)}`;
 };
 
+// Format price for display with ₹ symbol
 const formatDisplayPrice = (price: number): string => {
   return `₹${price.toFixed(0)}`;
 };
@@ -37,10 +39,12 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
   });
 
   const handlePrint = () => {
+    // Thermal printer safe width
     const lineWidth = 38;
     const dividerLine = "-".repeat(lineWidth);
     const doubleLine = "=".repeat(lineWidth);
 
+    // Column Widths (Total = 38 chars)
     const colWidths = {
       item: 14,
       qty: 3,
@@ -82,12 +86,7 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
       return lines.length ? lines : [text.slice(0, maxLength)];
     };
 
-    const formatRow = (
-      col1: string,
-      col2: string,
-      col3: string,
-      col4: string
-    ) => {
+    const formatRow = (col1: string, col2: string, col3: string, col4: string) => {
       const c1 = col1.padEnd(colWidths.item);
       const c2 = col2.padStart(colWidths.qty);
       const c3 = col3.padStart(colWidths.rate);
@@ -97,8 +96,8 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
 
     const receiptLines: string[] = [];
 
-    // 🔥 HEADER (BIG NAME like your sample)
-    receiptLines.push(centerText("YUMMY-FI PVT.LTD."));
+    // HEADER
+    receiptLines.push(centerText("** YUMMY FI **"));
     receiptLines.push(centerText("FOOD LIKE HOME STYLE"));
     receiptLines.push(dividerLine);
     receiptLines.push(centerText("DINE-IN BILL"));
@@ -117,7 +116,7 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
     receiptLines.push(dividerLine);
 
     order.items.forEach((item) => {
-      const itemPrice = item.price;
+      const itemPrice = item.offerPrice || item.price;
       const itemTotal = itemPrice * item.quantity;
 
       const itemName = item.name + (item.isVeg === false ? " [N]" : "");
@@ -128,6 +127,7 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
       const nameLines = wrapText(itemName, colWidths.item);
 
       receiptLines.push(formatRow(nameLines[0], qtyStr, rateStr, amountStr));
+
       for (let i = 1; i < nameLines.length; i++) {
         receiptLines.push(nameLines[i]);
       }
@@ -136,13 +136,9 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
     receiptLines.push(dividerLine);
 
     // TOTALS
-    receiptLines.push(
-      leftRightText("SUBTOTAL:", formatPrintPrice(order.totalAmount))
-    );
+    receiptLines.push(leftRightText("SUBTOTAL:", formatPrintPrice(order.totalAmount)));
     receiptLines.push(doubleLine);
-    receiptLines.push(
-      leftRightText("GRAND TOTAL:", formatPrintPrice(order.totalAmount))
-    );
+    receiptLines.push(leftRightText("GRAND TOTAL:", formatPrintPrice(order.totalAmount)));
     receiptLines.push(doubleLine);
 
     // PAYMENT
@@ -156,8 +152,8 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
     receiptLines.push(centerText("* THANK YOU FOR DINING WITH US! *"));
     receiptLines.push(centerText("PLEASE VISIT AGAIN"));
 
-    // 🔥 Extra feed lines so paper comes out fully (no feed button)
-    for (let i = 0; i < 10; i++) receiptLines.push(" ");
+    // 🔥 IMPORTANT: Extra feed lines (prevents half print + feed button)
+    for (let i = 0; i < 14; i++) receiptLines.push(" ");
 
     const receiptText = receiptLines.join("\n");
 
@@ -171,9 +167,9 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
   <meta charset="UTF-8" />
   <title>Bill - ${billNumber}</title>
   <style>
+    /* ✅ THERMAL SAFE */
     @page {
       margin: 0;
-      size: 72mm auto;
     }
 
     html, body {
@@ -185,30 +181,29 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
     body {
       margin: 0;
       padding: 0;
-      width: 72mm;
-      overflow: hidden;
     }
 
-    /* ✅ BEST FIX FOR YOUR PRINTER:
-       Instead of "left: mm", we push content using padding-left.
-       This fixes hardware-left-margin printers. */
+    /* ✅ FIXED WIDTH + CENTER */
     .receipt {
       width: 72mm;
-      margin: 0;
+      margin: 0 auto;
 
-      /* ⭐ MAIN CENTER FIX */
-      padding-left: 6mm;
-      padding-right: 0mm;
+      /* ⭐ RECORD PRINTER HARDWARE OFFSET FIX */
+      position: relative;
+      left: -2mm;   /* change to -3mm / -4mm if needed */
     }
 
     pre {
       margin: 0;
       font-family: monospace;
       font-size: 12px;
-      font-weight: 700; /* little bolder like sample */
+      font-weight: 600;
       line-height: 1.25;
+
+      /* 🔥 MOST IMPORTANT */
       white-space: pre;
-      page-break-after: avoid;
+      word-break: normal;
+      overflow: visible;
     }
   </style>
 </head>
@@ -221,9 +216,11 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
     window.onload = function () {
       window.focus();
       window.print();
+
+      // ✅ Delay close so print job fully sends
       setTimeout(function () {
         window.close();
-      }, 1300);
+      }, 1200);
     };
   </script>
 </body>
@@ -313,7 +310,7 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
               >
                 <div className="header text-center mb-4">
                   <div className="text-2xl font-bold tracking-wider mb-1">
-                    YUMMYFI PVT. LTD.
+                    YUMMY FI
                   </div>
                   <div className="tagline text-xs text-gray-500">
                     FOOD LIKE HOME STYLE
@@ -383,7 +380,7 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
                 {/* Items */}
                 <div className="mb-3">
                   {order.items.map((item, idx) => {
-                    const itemPrice = item.price;
+                    const itemPrice = item.offerPrice || item.price;
                     const itemTotal = itemPrice * item.quantity;
 
                     return (
