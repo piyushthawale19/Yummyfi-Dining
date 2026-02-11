@@ -116,7 +116,7 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
     receiptLines.push(dividerLine);
 
     order.items.forEach((item) => {
-      const itemPrice = item.offerPrice || item.price;
+      const itemPrice = item.price;
       const itemTotal = itemPrice * item.quantity;
 
       const itemName = item.name + (item.isVeg === false ? " [N]" : "");
