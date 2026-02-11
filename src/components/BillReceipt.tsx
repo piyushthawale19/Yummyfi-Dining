@@ -147,8 +147,9 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
     receiptLines.push(centerText("* THANK YOU FOR DINING WITH US! *"));
     receiptLines.push(centerText("PLEASE VISIT AGAIN"));
 
-    // 🔥 Extra feed lines so paper comes out fully (no feed button)
-    for (let i = 0; i < 16; i++) receiptLines.push(" ");
+    // Keep a very small feed gap so cutter/manual tear is comfortable,
+    // but avoid long blank paper feed on thermal printers.
+    for (let i = 0; i < 2; i++) receiptLines.push(" ");
 
     const receiptText = receiptLines.join("\n");
 
@@ -162,7 +163,10 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
   <meta charset="UTF-8" />
   <title>Bill - ${billNumber}</title>
   <style>
-    @page { margin: 0; }
+    @page {
+      margin: 0;
+      size: 72mm auto;
+    }
 
     html, body {
       margin: 0;
@@ -173,6 +177,8 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
     body {
       margin: 0;
       padding: 0;
+      width: 72mm;
+      overflow: hidden;
     }
 
     /* ✅ BEST FIX FOR YOUR PRINTER:
@@ -194,6 +200,7 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
       font-weight: 700; /* little bolder like sample */
       line-height: 1.25;
       white-space: pre;
+      page-break-after: avoid;
     }
   </style>
 </head>
