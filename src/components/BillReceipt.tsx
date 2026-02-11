@@ -152,6 +152,12 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
     for (let i = 0; i < 2; i++) receiptLines.push(" ");
 
     const receiptText = receiptLines.join("\n");
+    const estimatedLineHeightMm = 4;
+    const topBottomPaddingMm = 12;
+    const receiptHeightMm = Math.max(
+      80,
+      Math.ceil(receiptLines.length * estimatedLineHeightMm + topBottomPaddingMm)
+    );
 
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
@@ -165,20 +171,20 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
   <style>
     @page {
       margin: 0;
-      size: 72mm auto;
+      size: 72mm ${receiptHeightMm}mm;
     }
 
     html, body {
       margin: 0;
       padding: 0;
       background: #fff;
+      width: 72mm;
+      height: ${receiptHeightMm}mm;
+      overflow: hidden;
     }
 
     body {
-      margin: 0;
-      padding: 0;
-      width: 72mm;
-      overflow: hidden;
+      display: block;
     }
 
     /* ✅ BEST FIX FOR YOUR PRINTER:
@@ -187,6 +193,7 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
     .receipt {
       width: 72mm;
       margin: 0;
+      box-sizing: border-box;
 
       /* ⭐ MAIN CENTER FIX */
       padding-left: 6mm;
@@ -200,7 +207,7 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
       font-weight: 700; /* little bolder like sample */
       line-height: 1.25;
       white-space: pre;
-      page-break-after: avoid;
+      page-break-after: auto;
     }
   </style>
 </head>
