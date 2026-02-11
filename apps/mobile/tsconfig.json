@@ -1,0 +1,18 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@yummyfi/types": ["../../packages/types/src"],
+      "@yummyfi/firebase": ["../../packages/firebase/src"],
+      "@yummyfi/firebase/expo": ["../../packages/firebase/expo"]
+    },
+    "strict": true
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
+  ]
+}

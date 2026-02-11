@@ -1,0 +1,56 @@
+{
+  "name": "@yummyfi/firebase",
+  "version": "1.0.0",
+  "description": "Shared Firebase configuration for Yummyfi web and mobile apps",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "firebase": "^12.8.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.5",
+    "@yummyfi/types": "file:../types",
+    "typescript": "^5.8.3"
+  },
+  "peerDependencies": {
+    "expo-auth-session": "*",
+    "expo-constants": "*",
+    "expo-file-system": "*",
+    "@react-native-async-storage/async-storage": "*"
+  },
+  "peerDependenciesMeta": {
+    "expo-auth-session": {
+      "optional": true
+    },
+    "expo-constants": {
+      "optional": true
+    },
+    "expo-file-system": {
+      "optional": true
+    },
+    "@react-native-async-storage/async-storage": {
+      "optional": true
+    }
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./web": {
+      "types": "./dist/web.d.ts",
+      "default": "./dist/web.js"
+    },
+    "./expo": {
+      "types": "./dist/expo.d.ts",
+      "default": "./dist/expo.js"
+    }
+  }
+}

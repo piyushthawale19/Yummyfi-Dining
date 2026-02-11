@@ -1,28 +1,19 @@
 {
-  "name": "yummyfi-monorepo",
+  "name": "@yummyfi/web",
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "workspaces": [
-    "packages/*",
-    "apps/*"
-  ],
   "scripts": {
-    "dev": "cd apps/web && vite",
-    "dev:web": "cd apps/web && vite",
-    "dev:mobile": "cd apps/mobile && npm start",
-    "build": "npm run build:packages && cd apps/web && vite build",
-    "build:packages": "npm run build:types && npm run build:firebase",
-    "build:types": "cd packages/types && npm run build",
-    "build:firebase": "cd packages/firebase && npm run build",
+    "dev": "vite",
+    "build": "vite build",
     "lint": "eslint .",
-    "lint:dualite": "eslint --config eslint.dualite.config.js .",
-    "tsc:dualite": "yarn tsc -p tsconfig.dualite.json",
     "preview": "vite preview"
   },
   "dependencies": {
     "@imagekit/javascript": "^5.2.1",
     "@vercel/analytics": "^1.6.1",
+    "@yummyfi/firebase": "file:../../packages/firebase",
+    "@yummyfi/types": "file:../../packages/types",
     "axios": "^1.9.0",
     "clsx": "^2.1.1",
     "firebase": "^12.8.0",

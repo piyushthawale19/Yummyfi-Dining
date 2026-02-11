@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import crypto from 'crypto';
+import path from 'path';
 
 export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
@@ -82,6 +83,15 @@ export default defineConfig(({ mode }) => {
         }
       }
     ],
+    
+    resolve: {
+      alias: {
+        '@yummyfi/types': path.resolve(__dirname, '../../packages/types/src'),
+        '@yummyfi/firebase': path.resolve(__dirname, '../../packages/firebase/src'),
+        '@yummyfi/firebase/web': path.resolve(__dirname, '../../packages/firebase/web.ts'),
+        '@yummyfi/firebase/expo': path.resolve(__dirname, '../../packages/firebase/expo.ts'),
+      },
+    },
     
     optimizeDeps: {
       exclude: ['lucide-react'],
