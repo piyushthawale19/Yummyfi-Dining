@@ -157,7 +157,7 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
     receiptLines.push(centerText("PLEASE VISIT AGAIN"));
 
     // 🔥 Extra feed lines so paper comes out fully (no feed button)
-    for (let i = 0; i < 2; i++) receiptLines.push(" ");
+    for (let i = 0; i < 10; i++) receiptLines.push(" ");
 
     const receiptText = receiptLines.join("\n");
 
