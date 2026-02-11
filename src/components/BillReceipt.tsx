@@ -97,7 +97,7 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
     const receiptLines: string[] = [];
 
     // HEADER
-    receiptLines.push(centerText("** YUMMY FI **"));
+    receiptLines.push(centerText("YUMMY-FI PVT.LMT"));
     receiptLines.push(centerText("FOOD LIKE HOME STYLE"));
     receiptLines.push(dividerLine);
     receiptLines.push(centerText("DINE-IN BILL"));
