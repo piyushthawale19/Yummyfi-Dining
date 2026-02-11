@@ -82,7 +82,12 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
       return lines.length ? lines : [text.slice(0, maxLength)];
     };
 
-    const formatRow = (col1: string, col2: string, col3: string, col4: string) => {
+    const formatRow = (
+      col1: string,
+      col2: string,
+      col3: string,
+      col4: string
+    ) => {
       const c1 = col1.padEnd(colWidths.item);
       const c2 = col2.padStart(colWidths.qty);
       const c3 = col3.padStart(colWidths.rate);
@@ -131,9 +136,13 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
     receiptLines.push(dividerLine);
 
     // TOTALS
-    receiptLines.push(leftRightText("SUBTOTAL:", formatPrintPrice(order.totalAmount)));
+    receiptLines.push(
+      leftRightText("SUBTOTAL:", formatPrintPrice(order.totalAmount))
+    );
     receiptLines.push(doubleLine);
-    receiptLines.push(leftRightText("GRAND TOTAL:", formatPrintPrice(order.totalAmount)));
+    receiptLines.push(
+      leftRightText("GRAND TOTAL:", formatPrintPrice(order.totalAmount))
+    );
     receiptLines.push(doubleLine);
 
     // PAYMENT
@@ -156,7 +165,7 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
     if (!printWindow) return;
 
     printWindow.document.write(`
-@DOCTYPE html
+<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8" />
@@ -260,10 +269,11 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
               <div className="flex gap-3">
                 <button
                   onClick={() => setPaymentMethod("UPI")}
-                  className={`flex-1 flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${paymentMethod === "UPI"
-                    ? "border-brand-maroon bg-brand-cream text-brand-maroon"
-                    : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
-                    }`}
+                  className={`flex-1 flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${
+                    paymentMethod === "UPI"
+                      ? "border-brand-maroon bg-brand-cream text-brand-maroon"
+                      : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                  }`}
                 >
                   <Smartphone size={24} />
                   <span className="font-bold text-sm">UPI</span>
@@ -271,10 +281,11 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
 
                 <button
                   onClick={() => setPaymentMethod("Cash")}
-                  className={`flex-1 flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${paymentMethod === "Cash"
-                    ? "border-brand-maroon bg-brand-cream text-brand-maroon"
-                    : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
-                    }`}
+                  className={`flex-1 flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${
+                    paymentMethod === "Cash"
+                      ? "border-brand-maroon bg-brand-cream text-brand-maroon"
+                      : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                  }`}
                 >
                   <Banknote size={24} />
                   <span className="font-bold text-sm">Cash</span>
@@ -282,10 +293,11 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
 
                 <button
                   onClick={() => setPaymentMethod("Card")}
-                  className={`flex-1 flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${paymentMethod === "Card"
-                    ? "border-brand-maroon bg-brand-cream text-brand-maroon"
-                    : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
-                    }`}
+                  className={`flex-1 flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${
+                    paymentMethod === "Card"
+                      ? "border-brand-maroon bg-brand-cream text-brand-maroon"
+                      : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                  }`}
                 >
                   <CreditCard size={24} />
                   <span className="font-bold text-sm">Card</span>
@@ -450,5 +462,3 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
     </AnimatePresence>
   );
 };
-
- 
