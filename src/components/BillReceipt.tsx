@@ -152,12 +152,6 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
     for (let i = 0; i < 2; i++) receiptLines.push(" ");
 
     const receiptText = receiptLines.join("\n");
-    const estimatedLineHeightMm = 4;
-    const topBottomPaddingMm = 12;
-    const receiptHeightMm = Math.max(
-      80,
-      Math.ceil(receiptLines.length * estimatedLineHeightMm + topBottomPaddingMm)
-    );
 
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
@@ -171,7 +165,7 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
   <style>
     @page {
       margin: 0;
-      size: 72mm ${receiptHeightMm}mm;
+      size: 72mm auto;
     }
 
     html, body {
@@ -179,35 +173,34 @@ export const BillReceipt = ({ order, isOpen, onClose }: BillReceiptProps) => {
       padding: 0;
       background: #fff;
       width: 72mm;
-      height: ${receiptHeightMm}mm;
-      overflow: hidden;
     }
 
-    body {
-      display: block;
-    }
-
-    /* ✅ BEST FIX FOR YOUR PRINTER:
-       Instead of "left: mm", we push content using padding-left.
-       This fixes hardware-left-margin printers. */
     .receipt {
       width: 72mm;
       margin: 0;
       box-sizing: border-box;
-
-      /* ⭐ MAIN CENTER FIX */
-      padding-left: 6mm;
-      padding-right: 0mm;
+      padding: 0 1.5mm;
     }
 
     pre {
       margin: 0;
-      font-family: monospace;
-      font-size: 12px;
-      font-weight: 700; /* little bolder like sample */
-      line-height: 1.25;
+      font-family: "Courier New", monospace;
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: 0;
       white-space: pre;
-      page-break-after: auto;
+    }
+
+    @media print {
+      html, body {
+        width: 72mm;
+        min-width: 72mm;
+      }
+
+      .receipt {
+        width: 72mm;
+      }
     }
   </style>
 </head>
